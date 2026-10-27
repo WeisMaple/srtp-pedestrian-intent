@@ -1,0 +1,11 @@
+{
+  "experiment": "LSTM weight decay controlled comparison",
+  "initial_source_config_weight_decay": 0.0001,
+  "additional_weight_decay": 0.0,
+  "seed": 2026,
+  "identical_split": true,
+  "epochs": 100,
+  "reason": "Paper specifies Adam but omits weight_decay; original source from-scratch run collapsed.",
+  "additional_normalization_ablation": "Uses training statistics at inference, declared non-paper experiment",
+  "base_configuration_preserved": true
+}

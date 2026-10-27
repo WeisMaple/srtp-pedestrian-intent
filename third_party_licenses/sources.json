@@ -1,0 +1,14 @@
+{
+  "YOLOv7-GPL-3.0.txt": {
+    "source": "https://raw.githubusercontent.com/WongKinYiu/yolov7/main/LICENSE.md",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  "DeepSORT-GPL-3.0.txt": {
+    "source": "https://raw.githubusercontent.com/nwojke/deep_sort/master/LICENSE",
+    "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2"
+  },
+  "ST-GCN-BSD-2-Clause.txt": {
+    "source": "https://raw.githubusercontent.com/yysijie/st-gcn/master/LICENSE",
+    "sha256": "0dae2ac824fad6f5fc52748ff2e902e2cfc84402d3670eae9953804d152501b4"
+  }
+}

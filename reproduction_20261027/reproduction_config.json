@@ -1,0 +1,63 @@
+{
+  "project_root": "F:/Artificial_Intelligence/srtp",
+  "artifact_root": "D:/SRTP_reproduction_20261027",
+  "python": "F:/Anaconda/envs/d2l/python.exe",
+  "seed": 2026,
+  "data": {
+    "videos": "all 346 JAAD clips",
+    "detector": "YOLOv7x",
+    "detector_imgsz": 640,
+    "detector_conf": 0.25,
+    "detector_nms_iou": 0.45,
+    "detection_batch": 4,
+    "tracker": "original DeepSORT/ReID.pb",
+    "cosine_threshold": 0.5,
+    "max_age": 100,
+    "match_policy": "original DataProcess.match_bboxes, first 11 tracked boxes by list index",
+    "match_threshold": 0.5,
+    "pose": "yolov8n-pose.pt",
+    "pose_imgsz": 640,
+    "pose_batch": 8,
+    "visualization": "no saved annotated videos; pose crops use raw video without visualization overlays",
+    "keep": "matched behavior-labelled pedestrians and frames present in JAAD annotation",
+    "window": 50,
+    "stride": 10,
+    "reid_batch_size": 32,
+    "pose_NMS_time_budget": "unlimited to prevent silent skipping of batch members",
+    "GPU_memory_policy": "release cache between stages; allocator ceiling min(75% total, available minus 512MiB)"
+  },
+  "split": {
+    "method": "torch random_split style random permutation of windows",
+    "train_fraction": 0.8,
+    "normalization": "same as original Dataset: fitted before split over all loaded samples; retained for paper/code fidelity"
+  },
+  "stgcn": {
+    "epochs_main": 100,
+    "epochs_extended": 125,
+    "batch_size": 128,
+    "optimizer": "SGD",
+    "learning_rate": 0.001,
+    "momentum": 0.0,
+    "weight_decay": 0.0,
+    "loss": "CrossEntropyLoss",
+    "num_classes": 3
+  },
+  "lstm": {
+    "epochs": 100,
+    "batch_size": 128,
+    "optimizer": "Adam",
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "input_size": 51,
+    "hidden_size": 256,
+    "num_layers": 10,
+    "output_frames": 10,
+    "loss": "MSELoss"
+  },
+  "limitations": [
+    "original sample selection and random seed unavailable",
+    "window-level split can share videos/persons and adjacent frames across train/validation",
+    "normalization uses validation data as in recovered code; not a leakage-free benchmark",
+    "GPU batching and omission of visualization overlays can create small feature differences from the original workflow"
+  ]
+}

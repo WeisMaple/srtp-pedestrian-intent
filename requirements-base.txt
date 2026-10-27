@@ -1,0 +1,12 @@
+# Verified with Python 3.9.23. Install torch/torchvision separately as in README.
+numpy==1.23.5
+scipy==1.10.1
+opencv-python==4.8.1.78
+matplotlib==3.7.2
+pandas==2.0.3
+pillow==11.1.0
+pyyaml==6.0.2
+requests==2.31.0
+psutil==5.9.0
+tqdm==4.67.1
+packaging==24.2
