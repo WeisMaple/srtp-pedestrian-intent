@@ -1,0 +1,624 @@
+{
+  "split": {
+    "train": 188,
+    "val": 32,
+    "test": 126
+  },
+  "models": {
+    "legacy": {
+      "legacy_pair": {
+        "n": 853,
+        "accuracy": 0.7397420867526378,
+        "macro_f1": 0.29870170794731205,
+        "crossing_recall": 0.9616564417177914,
+        "confusion_matrix": [
+          [
+            4,
+            0,
+            139
+          ],
+          [
+            0,
+            0,
+            58
+          ],
+          [
+            25,
+            0,
+            627
+          ]
+        ]
+      },
+      "training_stats": {
+        "n": 853,
+        "accuracy": 0.7327080890973037,
+        "macro_f1": 0.354966504966505,
+        "crossing_recall": 0.9386503067484663,
+        "confusion_matrix": [
+          [
+            0,
+            9,
+            134
+          ],
+          [
+            0,
+            13,
+            45
+          ],
+          [
+            0,
+            40,
+            612
+          ]
+        ]
+      },
+      "stgcn_observed": {
+        "n": 853,
+        "accuracy": 0.7667057444314185,
+        "macro_f1": 0.4043712350507045,
+        "crossing_recall": 0.9723926380368099,
+        "confusion_matrix": [
+          [
+            10,
+            12,
+            121
+          ],
+          [
+            0,
+            10,
+            48
+          ],
+          [
+            5,
+            13,
+            634
+          ]
+        ]
+      },
+      "coverage": 0.20362855096681787,
+      "eligible": 4189,
+      "dataset": {
+        "train": {
+          "windows": 1130,
+          "lstm_windows": 1083,
+          "eligible": 4989,
+          "classes": [
+            105,
+            117,
+            908
+          ]
+        },
+        "val": {
+          "windows": 215,
+          "lstm_windows": 210,
+          "eligible": 802,
+          "classes": [
+            93,
+            0,
+            122
+          ]
+        },
+        "test": {
+          "windows": 730,
+          "lstm_windows": 683,
+          "eligible": 4189,
+          "classes": [
+            136,
+            58,
+            536
+          ]
+        }
+      },
+      "selected_epochs": {
+        "stgcn": 49,
+        "lstm": 64
+      }
+    },
+    "modern": {
+      "legacy_pair": {
+        "n": 1498,
+        "accuracy": 0.815086782376502,
+        "macro_f1": 0.3003690036900369,
+        "crossing_recall": 0.9951100244498777,
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            228
+          ],
+          [
+            9,
+            0,
+            34
+          ],
+          [
+            4,
+            2,
+            1221
+          ]
+        ]
+      },
+      "training_stats": {
+        "n": 1498,
+        "accuracy": 0.7309746328437917,
+        "macro_f1": 0.3416231270141221,
+        "crossing_recall": 0.8663406682966586,
+        "confusion_matrix": [
+          [
+            31,
+            12,
+            185
+          ],
+          [
+            5,
+            1,
+            37
+          ],
+          [
+            153,
+            11,
+            1063
+          ]
+        ]
+      },
+      "stgcn_observed": {
+        "n": 1498,
+        "accuracy": 0.7963951935914553,
+        "macro_f1": 0.4527720315562577,
+        "crossing_recall": 0.9209453952730237,
+        "confusion_matrix": [
+          [
+            54,
+            37,
+            137
+          ],
+          [
+            5,
+            9,
+            29
+          ],
+          [
+            78,
+            19,
+            1130
+          ]
+        ]
+      },
+      "coverage": 0.35760324659823345,
+      "eligible": 4189,
+      "dataset": {
+        "train": {
+          "windows": 1554,
+          "lstm_windows": 1455,
+          "eligible": 4989,
+          "classes": [
+            166,
+            106,
+            1282
+          ]
+        },
+        "val": {
+          "windows": 299,
+          "lstm_windows": 284,
+          "eligible": 802,
+          "classes": [
+            98,
+            1,
+            200
+          ]
+        },
+        "test": {
+          "windows": 1301,
+          "lstm_windows": 1214,
+          "eligible": 4189,
+          "classes": [
+            220,
+            43,
+            1038
+          ]
+        }
+      },
+      "selected_epochs": {
+        "stgcn": 89,
+        "lstm": 68
+      }
+    }
+  },
+  "paired": {
+    "legacy_pair": {
+      "legacy": {
+        "n": 598,
+        "accuracy": 0.7474916387959866,
+        "macro_f1": 0.3051521196640338,
+        "crossing_recall": 0.9547413793103449,
+        "confusion_matrix": [
+          [
+            4,
+            0,
+            102
+          ],
+          [
+            0,
+            0,
+            28
+          ],
+          [
+            21,
+            0,
+            443
+          ]
+        ]
+      },
+      "modern": {
+        "n": 598,
+        "accuracy": 0.7692307692307693,
+        "macro_f1": 0.2917856010149064,
+        "crossing_recall": 0.9913793103448276,
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            106
+          ],
+          [
+            7,
+            0,
+            21
+          ],
+          [
+            4,
+            0,
+            460
+          ]
+        ]
+      },
+      "always_crossing": {
+        "n": 598,
+        "accuracy": 0.7759197324414716,
+        "macro_f1": 0.29127432517263024,
+        "crossing_recall": 1.0,
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            106
+          ],
+          [
+            0,
+            0,
+            28
+          ],
+          [
+            0,
+            0,
+            464
+          ]
+        ]
+      },
+      "videos": 53,
+      "accuracy_delta_modern_minus_legacy": 0.021739130434782705,
+      "video_bootstrap_95ci": [
+        -0.0155053841281332,
+        0.061547231270358264
+      ]
+    },
+    "training_stats": {
+      "legacy": {
+        "n": 598,
+        "accuracy": 0.754180602006689,
+        "macro_f1": 0.39616585089026035,
+        "crossing_recall": 0.9461206896551724,
+        "confusion_matrix": [
+          [
+            0,
+            9,
+            97
+          ],
+          [
+            0,
+            12,
+            16
+          ],
+          [
+            0,
+            25,
+            439
+          ]
+        ]
+      },
+      "modern": {
+        "n": 598,
+        "accuracy": 0.705685618729097,
+        "macro_f1": 0.34900175257918226,
+        "crossing_recall": 0.8642241379310345,
+        "confusion_matrix": [
+          [
+            21,
+            6,
+            79
+          ],
+          [
+            1,
+            0,
+            27
+          ],
+          [
+            62,
+            1,
+            401
+          ]
+        ]
+      },
+      "always_crossing": {
+        "n": 598,
+        "accuracy": 0.7759197324414716,
+        "macro_f1": 0.29127432517263024,
+        "crossing_recall": 1.0,
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            106
+          ],
+          [
+            0,
+            0,
+            28
+          ],
+          [
+            0,
+            0,
+            464
+          ]
+        ]
+      },
+      "videos": 53,
+      "accuracy_delta_modern_minus_legacy": -0.04849498327759205,
+      "video_bootstrap_95ci": [
+        -0.1339142739950779,
+        0.03655544365362526
+      ]
+    }
+  },
+  "speed": {
+    "legacy": {
+      "frames": 450,
+      "seconds": 108.22983020000001,
+      "fps_including_setup": 4.1578185900175235,
+      "behavior_predictions": 261,
+      "records": [
+        {
+          "video": "video_0005",
+          "seconds_call": 46.17159350000001,
+          "frames": 150,
+          "annotations": 188,
+          "steady_seconds_after_first_detector": 44.42500750000001,
+          "decoded_frames": 150,
+          "fps_including_setup": 3.248750771402334
+        },
+        {
+          "video": "video_0015",
+          "seconds_call": 13.502936300000002,
+          "frames": 150,
+          "annotations": 0,
+          "steady_seconds_after_first_detector": 12.67969620000001,
+          "decoded_frames": 150,
+          "fps_including_setup": 11.108694928820777
+        },
+        {
+          "video": "video_0016",
+          "seconds_call": 48.55530040000001,
+          "frames": 150,
+          "annotations": 73,
+          "steady_seconds_after_first_detector": 47.4862019,
+          "decoded_frames": 150,
+          "fps_including_setup": 3.089261085078159
+        }
+      ]
+    },
+    "modern": {
+      "frames": 450,
+      "seconds": 20.409437500000003,
+      "fps_including_setup": 22.04862333908026,
+      "behavior_predictions": 108,
+      "records": [
+        {
+          "video": "video_0005",
+          "seconds_call": 12.5136969,
+          "details": {
+            "input": "D:\\SRTP_independent_20261028\\speed\\video_0005_input.mp4",
+            "output": "D:\\SRTP_independent_20261028\\speed\\video_0005_modern.mp4",
+            "pose_model": "D:\\SRTP_modern_20261027\\weights\\yolo26s-pose.pt",
+            "STGCN": "D:\\SRTP_independent_20261028\\modern\\stgcn\\best.pt",
+            "LSTM": "D:\\SRTP_independent_20261028\\modern\\lstm\\best.pt",
+            "task": "predict",
+            "normalization": "legacy_pair",
+            "weights": "reproduced",
+            "tracker": "bytetrack.yaml",
+            "device": "cuda:0",
+            "ultralytics": "8.4.190",
+            "torch": "2.2.2+cu121",
+            "imgsz": 640,
+            "conf": 0.1,
+            "half_pose": false,
+            "classify_every": 1,
+            "max_gap": 2,
+            "track_ttl": 30,
+            "min_joints": 5,
+            "joint_conf": 0.2,
+            "save_keypoints": false,
+            "label_map": {
+              "0": "unclear intent",
+              "1": "not crossing",
+              "2": "crossing"
+            },
+            "forecast_observations": 50,
+            "note": "New frontend changes skeleton distribution; previous validation scores do not apply.",
+            "width": 1920,
+            "height": 1080,
+            "input_fps": 29.97,
+            "input_frames_declared": 150,
+            "status": "complete",
+            "frames": 150,
+            "pose_observations": 207,
+            "unique_track_ids": 2,
+            "classification_updates": 108,
+            "classification_annotations": 108,
+            "frontend_seconds": 3.5430623999999984,
+            "behavior_seconds": 6.674667399999998,
+            "processing_seconds": 11.873015500000001,
+            "processing_fps": 12.633690236486256,
+            "total_seconds_including_model_load": 12.2737687,
+            "median_frame_ms": 31.270649999999733,
+            "fps_excluding_first_frame": 14.243135231810706,
+            "peak_torch_allocated_MiB": 257.93798828125,
+            "tensorflow_loaded": false
+          },
+          "decoded_frames": 150,
+          "fps_including_setup": 11.986865368298956
+        },
+        {
+          "video": "video_0015",
+          "seconds_call": 3.242504500000001,
+          "details": {
+            "input": "D:\\SRTP_independent_20261028\\speed\\video_0015_input.mp4",
+            "output": "D:\\SRTP_independent_20261028\\speed\\video_0015_modern.mp4",
+            "pose_model": "D:\\SRTP_modern_20261027\\weights\\yolo26s-pose.pt",
+            "STGCN": "D:\\SRTP_independent_20261028\\modern\\stgcn\\best.pt",
+            "LSTM": "D:\\SRTP_independent_20261028\\modern\\lstm\\best.pt",
+            "task": "predict",
+            "normalization": "legacy_pair",
+            "weights": "reproduced",
+            "tracker": "bytetrack.yaml",
+            "device": "cuda:0",
+            "ultralytics": "8.4.190",
+            "torch": "2.2.2+cu121",
+            "imgsz": 640,
+            "conf": 0.1,
+            "half_pose": false,
+            "classify_every": 1,
+            "max_gap": 2,
+            "track_ttl": 30,
+            "min_joints": 5,
+            "joint_conf": 0.2,
+            "save_keypoints": false,
+            "label_map": {
+              "0": "unclear intent",
+              "1": "not crossing",
+              "2": "crossing"
+            },
+            "forecast_observations": 50,
+            "note": "New frontend changes skeleton distribution; previous validation scores do not apply.",
+            "width": 1920,
+            "height": 1080,
+            "input_fps": 29.97,
+            "input_frames_declared": 150,
+            "status": "complete",
+            "frames": 150,
+            "pose_observations": 2,
+            "unique_track_ids": 1,
+            "classification_updates": 0,
+            "classification_annotations": 0,
+            "frontend_seconds": 1.5658386999999898,
+            "behavior_seconds": 0.0,
+            "processing_seconds": 3.133315100000001,
+            "processing_fps": 47.87261900343185,
+            "total_seconds_including_model_load": 3.232501300000001,
+            "median_frame_ms": 19.469150000000823,
+            "fps_excluding_first_frame": 50.675204588384396,
+            "peak_torch_allocated_MiB": 257.9501953125,
+            "tensorflow_loaded": false
+          },
+          "decoded_frames": 150,
+          "fps_including_setup": 46.26053718660991
+        },
+        {
+          "video": "video_0016",
+          "seconds_call": 4.653236100000001,
+          "details": {
+            "input": "D:\\SRTP_independent_20261028\\speed\\video_0016_input.mp4",
+            "output": "D:\\SRTP_independent_20261028\\speed\\video_0016_modern.mp4",
+            "pose_model": "D:\\SRTP_modern_20261027\\weights\\yolo26s-pose.pt",
+            "STGCN": "D:\\SRTP_independent_20261028\\modern\\stgcn\\best.pt",
+            "LSTM": "D:\\SRTP_independent_20261028\\modern\\lstm\\best.pt",
+            "task": "predict",
+            "normalization": "legacy_pair",
+            "weights": "reproduced",
+            "tracker": "bytetrack.yaml",
+            "device": "cuda:0",
+            "ultralytics": "8.4.190",
+            "torch": "2.2.2+cu121",
+            "imgsz": 640,
+            "conf": 0.1,
+            "half_pose": false,
+            "classify_every": 1,
+            "max_gap": 2,
+            "track_ttl": 30,
+            "min_joints": 5,
+            "joint_conf": 0.2,
+            "save_keypoints": false,
+            "label_map": {
+              "0": "unclear intent",
+              "1": "not crossing",
+              "2": "crossing"
+            },
+            "forecast_observations": 50,
+            "note": "New frontend changes skeleton distribution; previous validation scores do not apply.",
+            "width": 1920,
+            "height": 1080,
+            "input_fps": 29.97,
+            "input_frames_declared": 150,
+            "status": "complete",
+            "frames": 150,
+            "pose_observations": 128,
+            "unique_track_ids": 4,
+            "classification_updates": 0,
+            "classification_annotations": 0,
+            "frontend_seconds": 2.817780700000011,
+            "behavior_seconds": 0.0,
+            "processing_seconds": 4.528349000000002,
+            "processing_fps": 33.124655365564784,
+            "total_seconds_including_model_load": 4.642785799999999,
+            "median_frame_ms": 30.057049999998142,
+            "fps_excluding_first_frame": 34.14027031853625,
+            "peak_torch_allocated_MiB": 298.18603515625,
+            "tensorflow_loaded": false
+          },
+          "decoded_frames": 150,
+          "fps_including_setup": 32.23563059695165
+        }
+      ]
+    },
+    "engineering_speed_ratio": 5.302930578072031,
+    "equal_behavior_work": {
+      "cpu": {
+        "histories": 20,
+        "seconds": 0.8018253999999998,
+        "histories_per_second": 24.943086113261074,
+        "batch": 1,
+        "warmup": 3
+      },
+      "cuda:0": {
+        "histories": 20,
+        "seconds": 1.7434886,
+        "histories_per_second": 11.471253669223877,
+        "batch": 1,
+        "warmup": 3
+      },
+      "max_probability_difference": 7.212162017822266e-06,
+      "class_agreement": 1.0,
+      "speed_ratio": 0.45989712809134503,
+      "note": "Identical weights, 20 identical 50-pose histories, batch=1, five LSTM recursions and ST-GCN; isolates CPU versus CUDA behavior runtime, not YOLO speed."
+    }
+  },
+  "extraction_batch_check": {
+    "single_observations": 120,
+    "batch_observations": 120,
+    "shared_track_frame_keys": 120,
+    "max_pose_abs_difference": 4.23828125,
+    "mean_xy_pixel_difference": 0.013423127122223377,
+    "p95_xy_pixel_difference": 0.018740844726562483,
+    "max_confidence_difference": 0.07719607651233673,
+    "note": "Batch and single-frame CUDA inference are not numerically identical; tracking keys agree on this 60-frame check."
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "epoch100": {
+    "accuracy": 0.9549999833106995,
+    "macro_f1": 0.9224664568901062,
+    "confusion_matrix": [
+      [
+        49,
+        3,
+        1
+      ],
+      [
+        0,
+        15,
+        2
+      ],
+      [
+        3,
+        0,
+        127
+      ]
+    ],
+    "samples": 200
+  },
+  "final125": {
+    "accuracy": 0.9700000286102295,
+    "macro_f1": 0.9448747634887695,
+    "confusion_matrix": [
+      [
+        51,
+        1,
+        1
+      ],
+      [
+        0,
+        15,
+        2
+      ],
+      [
+        1,
+        1,
+        128
+      ]
+    ],
+    "samples": 200
+  },
+  "best": {
+    "accuracy": 0.9800000190734863,
+    "macro_f1": 0.9614333510398865,
+    "confusion_matrix": [
+      [
+        52,
+        0,
+        1
+      ],
+      [
+        0,
+        15,
+        2
+      ],
+      [
+        0,
+        1,
+        129
+      ]
+    ],
+    "samples": 200,
+    "epoch": 121
+  },
+  "validation_classes": [
+    53,
+    17,
+    130
+  ],
+  "majority_baseline": 0.65,
+  "overlap_fraction": 0.975,
+  "dataset": {
+    "videos": 346,
+    "people": 124,
+    "observations": 14371,
+    "windows": 996,
+    "classes": [
+      270,
+      70,
+      656
+    ]
+  },
+  "normalization": "Before split over all windows, intentionally the original protocol"
+}

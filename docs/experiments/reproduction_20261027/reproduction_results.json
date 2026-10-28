@@ -1,0 +1,396 @@
+{
+  "dataset": {
+    "videos": 346,
+    "matched_people": 374,
+    "skeleton_observations": 46685,
+    "classes": {
+      "0": 460,
+      "1": 222,
+      "2": 2491
+    },
+    "stgcn": {
+      "samples": 3173,
+      "input_shape": [
+        3173,
+        3,
+        50,
+        17,
+        1
+      ],
+      "target_shape": [
+        3173
+      ]
+    },
+    "lstm": {
+      "samples": 2880,
+      "input_shape": [
+        2880,
+        50,
+        51
+      ],
+      "target_shape": [
+        2880,
+        10,
+        17,
+        3
+      ]
+    }
+  },
+  "models": {
+    "stgcn": {
+      "pretrained_baseline": {
+        "loss_sum": 0.8716984540224075,
+        "loss_mean": 0.17470436253416258,
+        "samples": 635,
+        "accuracy": 0.9448818897637795,
+        "confusion_matrix": [
+          [
+            76,
+            2,
+            17
+          ],
+          [
+            2,
+            42,
+            5
+          ],
+          [
+            5,
+            4,
+            482
+          ]
+        ],
+        "note": "Existing supplied weights, recreated global normalization and seeded 80/20 window split; original training overlap unknown",
+        "macro_f1": 0.8962520622728297,
+        "majority_baseline_accuracy": 0.7732283464566929
+      },
+      "best_validation": {
+        "epoch": 124,
+        "loss_sum": 0.5439850054681301,
+        "loss_mean": 0.10848995341560033,
+        "samples": 635,
+        "accuracy": 0.9669291338582677,
+        "confusion_matrix": [
+          [
+            88,
+            2,
+            5
+          ],
+          [
+            2,
+            39,
+            8
+          ],
+          [
+            1,
+            3,
+            487
+          ]
+        ],
+        "macro_f1": 0.9225972823511966,
+        "majority_baseline_accuracy": 0.7732283464566929
+      },
+      "final_validation": {
+        "loss_sum": 0.5921824052929878,
+        "loss_mean": 0.11815021446370703,
+        "samples": 635,
+        "accuracy": 0.9637795275590552,
+        "confusion_matrix": [
+          [
+            89,
+            2,
+            4
+          ],
+          [
+            3,
+            39,
+            7
+          ],
+          [
+            2,
+            5,
+            484
+          ]
+        ],
+        "epochs": 125,
+        "elapsed_seconds": 520.7222781,
+        "normalization_saved_in": "D:\\SRTP_reproduction_20261027\\datasets\\stgcn.pt",
+        "macro_f1": 0.9148653317615275,
+        "majority_baseline_accuracy": 0.7732283464566929
+      },
+      "split": {
+        "seed": 2026,
+        "samples": 3173,
+        "train_samples": 2538,
+        "validation_samples": 635,
+        "shared_people": 226,
+        "validation_people": 232,
+        "validation_windows_overlapping_training_history": 625,
+        "validation_history_overlap_fraction": 0.984251968503937
+      },
+      "epoch_100": {
+        "loss_sum": 0.751066617667675,
+        "loss_mean": 0.149831033480449,
+        "samples": 635,
+        "accuracy": 0.9448818897637795,
+        "confusion_matrix": [
+          [
+            84,
+            4,
+            7
+          ],
+          [
+            4,
+            34,
+            11
+          ],
+          [
+            3,
+            6,
+            482
+          ]
+        ],
+        "macro_f1": 0.8690544650962605,
+        "majority_baseline_accuracy": 0.7732283464566929
+      }
+    },
+    "lstm": {
+      "pretrained_baseline": {
+        "loss_sum": 1.3344030678272247,
+        "loss_mean": 0.2663136555088891,
+        "samples": 576,
+        "note": "Existing supplied weights, recreated global normalization and seeded 80/20 window split; original training overlap unknown"
+      },
+      "best_validation": {
+        "epoch": 7,
+        "loss_sum": 4.521467506885529,
+        "loss_mean": 0.9067745076285468,
+        "samples": 576
+      },
+      "final_validation": {
+        "loss_sum": 4.525051534175873,
+        "loss_mean": 0.9073626465267606,
+        "samples": 576,
+        "epochs": 100,
+        "elapsed_seconds": 71.51628649999999,
+        "normalization_saved_in": "D:\\SRTP_reproduction_20261027\\datasets\\lstm.pt"
+      },
+      "split": {
+        "seed": 2026,
+        "samples": 2880,
+        "train_samples": 2304,
+        "validation_samples": 576,
+        "shared_people": 213,
+        "validation_people": 220,
+        "validation_windows_overlapping_training_history": 568,
+        "validation_history_overlap_fraction": 0.9861111111111112
+      }
+    },
+    "lstm_wd0": {
+      "best_validation": {
+        "epoch": 71,
+        "loss_sum": 1.337898164987564,
+        "loss_mean": 0.2693224052588145,
+        "samples": 576
+      },
+      "final_validation": {
+        "loss_sum": 1.3865373730659485,
+        "loss_mean": 0.27973558174239266,
+        "samples": 576,
+        "epochs": 100,
+        "elapsed_seconds": 71.8958315,
+        "normalization_saved_in": "D:\\SRTP_reproduction_20261027\\datasets\\lstm.pt"
+      },
+      "pretrained_baseline_shared_with_lstm": true,
+      "split": {
+        "seed": 2026,
+        "samples": 2880,
+        "train_samples": 2304,
+        "validation_samples": 576,
+        "shared_people": 213,
+        "validation_people": 220,
+        "validation_windows_overlapping_training_history": 568,
+        "validation_history_overlap_fraction": 0.9861111111111112
+      }
+    }
+  },
+  "protocol_limitations": [
+    "original sample selection and random seed unavailable",
+    "window-level split can share videos/persons and adjacent frames across train/validation",
+    "normalization uses validation data as in recovered code; not a leakage-free benchmark",
+    "GPU batching and omission of visualization overlays can create small feature differences from the original workflow"
+  ],
+  "LSTM_hold_last_comparison": {
+    "lstm": {
+      "reference": "automatic detected poses, same normalized training space",
+      "validation_windows": 576,
+      "LSTM_MSE_mean": 0.9073625951031454,
+      "hold_last_MSE_mean": 0.2642273880038126,
+      "relative_MSE_reduction": -2.434021741493553
+    },
+    "lstm_wd0": {
+      "reference": "automatic detected poses, same normalized training space",
+      "validation_windows": 576,
+      "LSTM_MSE_mean": 0.27973557017207923,
+      "hold_last_MSE_mean": 0.2642273880038126,
+      "relative_MSE_reduction": -0.05869256130270206
+    }
+  },
+  "LSTM_weight_decay_control": {
+    "same_seed": true,
+    "same_train_validation_indices": true,
+    "same_learning_rate": 0.001,
+    "same_epochs": 100,
+    "source_code_weight_decay": 0.0001,
+    "paper_Adam_default_comparison": 0.0,
+    "diagnostic": {
+      "source_decay_from_scratch": {
+        "MSE_on_16_windows": 0.9436007738113403,
+        "mean_output_std_across_different_inputs": 0.0,
+        "layer0_input_weight_norm": 0.0,
+        "layer0_input_gradient_norm": 0.0,
+        "layer9_input_gradient_norm": 7.420359179377556e-05,
+        "layer0_weight_norm_float64": 1.4940854596986844e-38,
+        "layer0_weight_max_absolute": 6.4378454048010746e-40,
+        "layer0_nonzero_weights": 52224
+      },
+      "supplied_original": {
+        "MSE_on_16_windows": 0.1982492357492447,
+        "mean_output_std_across_different_inputs": 0.9049518704414368,
+        "layer0_input_weight_norm": 14.219779968261719,
+        "layer0_input_gradient_norm": 0.5598176717758179,
+        "layer9_input_gradient_norm": 0.42216822504997253
+      }
+    }
+  },
+  "joint_inference_diagnostic": {
+    "lstm/same_person_reference": {
+      "windows": 635,
+      "accuracy": 0.7244094488188977,
+      "confusion_matrix": [
+        [
+          12,
+          1,
+          82
+        ],
+        [
+          3,
+          2,
+          44
+        ],
+        [
+          39,
+          6,
+          446
+        ]
+      ],
+      "note": "Reconstructed detected histories, original two-sample normalization; not a separate official end-to-end test"
+    },
+    "lstm/matched_video_reference": {
+      "windows": 635,
+      "accuracy": 0.7322834645669292,
+      "confusion_matrix": [
+        [
+          16,
+          1,
+          78
+        ],
+        [
+          6,
+          2,
+          41
+        ],
+        [
+          33,
+          11,
+          447
+        ]
+      ],
+      "note": "Reconstructed detected histories, original two-sample normalization; not a separate official end-to-end test"
+    },
+    "lstm_wd0/same_person_reference": {
+      "windows": 635,
+      "accuracy": 0.7433070866141732,
+      "confusion_matrix": [
+        [
+          21,
+          3,
+          71
+        ],
+        [
+          4,
+          1,
+          44
+        ],
+        [
+          38,
+          3,
+          450
+        ]
+      ],
+      "note": "Reconstructed detected histories, original two-sample normalization; not a separate official end-to-end test"
+    },
+    "lstm_wd0/matched_video_reference": {
+      "windows": 635,
+      "accuracy": 0.7496062992125985,
+      "confusion_matrix": [
+        [
+          25,
+          5,
+          65
+        ],
+        [
+          6,
+          2,
+          41
+        ],
+        [
+          35,
+          7,
+          449
+        ]
+      ],
+      "note": "Reconstructed detected histories, original two-sample normalization; not a separate official end-to-end test"
+    }
+  },
+  "nonpaper_training_stats_alignment_ablation": {
+    "protocol": "Additional diagnostic only: use saved training normalization for both networks; NOT the paper two-sample inference recipe",
+    "windows": 635,
+    "LSTM_then_STGCN_accuracy": 0.7905511811023622,
+    "hold_last_then_STGCN_accuracy": 0.7795275590551181,
+    "LSTM_confusion_matrix": [
+      [
+        60,
+        6,
+        29
+      ],
+      [
+        5,
+        19,
+        25
+      ],
+      [
+        50,
+        18,
+        423
+      ]
+    ],
+    "hold_last_confusion_matrix": [
+      [
+        72,
+        4,
+        19
+      ],
+      [
+        3,
+        28,
+        18
+      ],
+      [
+        71,
+        25,
+        395
+      ]
+    ]
+  }
+}

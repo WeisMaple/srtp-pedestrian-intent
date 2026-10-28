@@ -1,0 +1,32 @@
+{
+  "train": {
+    "windows": 1554,
+    "lstm_windows": 1455,
+    "eligible": 4989,
+    "classes": [
+      166,
+      106,
+      1282
+    ]
+  },
+  "val": {
+    "windows": 299,
+    "lstm_windows": 284,
+    "eligible": 802,
+    "classes": [
+      98,
+      1,
+      200
+    ]
+  },
+  "test": {
+    "windows": 1301,
+    "lstm_windows": 1214,
+    "eligible": 4189,
+    "classes": [
+      220,
+      43,
+      1038
+    ]
+  }
+}

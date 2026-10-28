@@ -1,0 +1,12 @@
+{
+  "STGCN_features_max_abs": 0.0,
+  "STGCN_labels_equal": true,
+  "classes_tested": [
+    0,
+    1,
+    2
+  ],
+  "short_sequence_tested": true,
+  "LSTM_inputs_max_abs": 0.0,
+  "LSTM_targets_max_abs": 0.0
+}

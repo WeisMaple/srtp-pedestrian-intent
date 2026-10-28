@@ -1,0 +1,29 @@
+[
+  {
+    "video": "video_0005",
+    "seconds_call": 46.17159350000001,
+    "frames": 150,
+    "annotations": 188,
+    "steady_seconds_after_first_detector": 44.42500750000001,
+    "decoded_frames": 150,
+    "fps_including_setup": 3.248750771402334
+  },
+  {
+    "video": "video_0015",
+    "seconds_call": 13.502936300000002,
+    "frames": 150,
+    "annotations": 0,
+    "steady_seconds_after_first_detector": 12.67969620000001,
+    "decoded_frames": 150,
+    "fps_including_setup": 11.108694928820777
+  },
+  {
+    "video": "video_0016",
+    "seconds_call": 48.55530040000001,
+    "frames": 150,
+    "annotations": 73,
+    "steady_seconds_after_first_detector": 47.4862019,
+    "decoded_frames": 150,
+    "fps_including_setup": 3.089261085078159
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "cpu": {
+    "histories": 20,
+    "seconds": 0.8018253999999998,
+    "histories_per_second": 24.943086113261074,
+    "batch": 1,
+    "warmup": 3
+  },
+  "cuda:0": {
+    "histories": 20,
+    "seconds": 1.7434886,
+    "histories_per_second": 11.471253669223877,
+    "batch": 1,
+    "warmup": 3
+  },
+  "max_probability_difference": 7.212162017822266e-06,
+  "class_agreement": 1.0,
+  "speed_ratio": 0.45989712809134503,
+  "note": "Identical weights, 20 identical 50-pose histories, batch=1, five LSTM recursions and ST-GCN; isolates CPU versus CUDA behavior runtime, not YOLO speed."
+}

@@ -1,0 +1,37 @@
+{
+  "videos": 346,
+  "matched_people": 374,
+  "skeleton_observations": 46685,
+  "classes": {
+    "0": 460,
+    "1": 222,
+    "2": 2491
+  },
+  "stgcn": {
+    "samples": 3173,
+    "input_shape": [
+      3173,
+      3,
+      50,
+      17,
+      1
+    ],
+    "target_shape": [
+      3173
+    ]
+  },
+  "lstm": {
+    "samples": 2880,
+    "input_shape": [
+      2880,
+      50,
+      51
+    ],
+    "target_shape": [
+      2880,
+      10,
+      17,
+      3
+    ]
+  }
+}

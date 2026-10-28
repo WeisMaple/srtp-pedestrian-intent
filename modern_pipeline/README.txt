@@ -1,4 +1,4 @@
-SRTP 新版 YOLO / PyTorch 管线
+﻿SRTP 新版 YOLO / PyTorch 管线
 2026-10-27
 
 新入口已经可以运行：F:\Artificial_Intelligence\srtp\run_prediction.py
@@ -19,7 +19,7 @@ YOLO、LSTM、ST-GCN 默认全部使用 CUDA；没有 GPU 时自动用 CPU。Byt
 常用选项
 --task predict：默认。用 50 次骨架观测递归预测未来 50 次观测的姿态，再分类。
 --task classify：只对已观察的 50 次骨架观测做 ST-GCN 分类，不调用 LSTM。
---classify-every 5：默认每 5 个视频帧更新一次行为结果，中间缓存标签；检测和跟踪仍逐帧运行。改为 1 可逐帧更新。
+--classify-every 1：默认每帧更新一次行为结果，保持原预测循环的频率。课堂展示需要加速时可显式设为 5，中间帧缓存标签，检测和跟踪仍逐帧运行。
 --weights reproduced：默认，使用上轮重训的 ST-GCN 第 125 轮与 LSTM weight_decay=0 对照组权重。
 --weights original：使用项目 Models 中最初提供的 ST-GCN/LSTM 权重。
 --stgcn / --lstm：指定兼容的 state_dict 文件，覆盖预设行为权重路径。
@@ -57,7 +57,7 @@ SRTP_MODERN_HOME 环境变量可整体修改新版产物根目录；移动时请
 执行：
 & 'F:\Anaconda\envs\d2l\python.exe' -s -m unittest discover -s 'F:\Artificial_Intelligence\srtp\modern_pipeline\tests' -p 'test_*.py' -v
 7 组新管线实际运行共检查 1,140 帧；5 段输出视频共 1,020 帧全部读回；各次运行均未加载 TensorFlow。
-600 帧完整视频在本机平均处理 21.19 FPS，含读帧、绘制、编码和逐帧记录；含模型准备总耗时 28.66 秒，PyTorch 峰值已分配显存约 258 MiB（不含桌面其他进程与CUDA驱动开销）。
+历史测试中，显式每 5 帧更新分类的 600 帧完整视频在本机平均处理 21.19 FPS，含读帧、绘制、编码和逐帧记录；含模型准备总耗时 28.66 秒，PyTorch 峰值已分配显存约 258 MiB（不含桌面其他进程与CUDA驱动开销）。
 CPU 分类、训练统计归一化、CUDA FP16/BoT-SORT 分支也已运行测试。
 
 精度范围

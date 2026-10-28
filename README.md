@@ -1,6 +1,8 @@
 # SRTP 行人意图预测
 
-保存已在本机跑通的车载视频行人意图预测代码，包括现代 PyTorch 管线、原始基线与论文复现实验。当前默认仍为“历史骨架 → LSTM 预测未来骨架 → ST-GCN 分类”；讨论中的新版当前行为识别任务尚未实施。
+本项目以原论文的行人意图预测为目标，保留“历史骨架 → LSTM 预测未来骨架 → ST-GCN 分类”的方法。代码升级集中于新版 YOLO、PyTorch 推理、模块接口和运行稳定性。课堂展示围绕道路视频中的行人检测、骨架和意图输出展开。
+
+原方法基线与工程升级版的边界、参数和结果口径见 [复现范围](docs/REPRODUCTION_SCOPE.md)。
 
 ```text
 视频 → YOLO26s-Pose（行人框 + COCO17 骨架）→ ByteTrack（行人 ID）
@@ -49,8 +51,8 @@ python -s run_prediction.py --input 'path/to/video.mp4' --output 'artifacts/resu
 ## 运行选项
 
 - `--task predict`：默认，预测未来骨架后分类。
-- `--task classify`：直接分类已观察骨架；沿用当前权重标签，尚未实现新的逐帧动作任务。
-- `--classify-every 5`：默认每 5 个视频帧更新行为结果，检测/跟踪逐帧执行；设为 `1` 可逐帧更新。
+- `--task classify`：仅用于分类模块的诊断与对照；默认课题流程仍为 `predict`。
+- `--classify-every 1`：默认逐帧更新行为结果，与原预测循环的更新频率保持一致。展示加速可显式设为 `5`，中间帧缓存标签。
 - `--normalization legacy_pair`：默认，保留恢复代码的固定参考二样本归一化。
 - `--normalization training_stats`：显式使用上轮训练统计，属于另列的探索分支。
 - `--tracker botsort.yaml`：可选 BoT-SORT；默认 ByteTrack。
@@ -67,6 +69,8 @@ python -s run_prediction.py --input 'path/to/video.mp4' --output 'artifacts/resu
 - `predict.py`、`DataProcess.py`、`DataSet.py`、`train.py`：恢复的原项目代码。
 - `api/`、`yolo/`、`deepsort/`：旧版检测与跟踪依赖的本地源码。
 - `reproduction_20261027/`：全量 JAAD 预处理、训练、对照实验与分析入口。
+- `independent_20261028/`：YOLO26 骨架提取、独立视频重训/对比、内部验证和测速脚本。
+- `docs/experiments/`：报告、指标、曲线及样本划分。
 
 复现脚本保留本机 `D:\SRTP_reproduction_20261027` 等路径，并非通用训练 CLI。迁移到其他电脑时需调整路径，准备官方 JAAD 数据、标注和旧检测权重。详见该目录说明。
 
@@ -78,9 +82,9 @@ python -s -m unittest discover -s modern_pipeline/tests -p 'test_*.py' -v
 
 本机已有真实权重时 26 项全部通过；缺少复现权重时，5 项真实权重行为测试自动跳过，其余 21 项无需模型文件。
 
-已完成 7 组实际推理、1,140 帧记录校验及 1,020 帧输出视频读回。600 帧完整示例平均处理 21.19 FPS。范围及限制见 [验证记录](docs/VALIDATION.md)。
+已完成 7 组实际推理、1,140 帧记录校验及 1,020 帧输出视频读回。此前 600 帧完整示例在显式每 5 帧更新行为结果的设置下平均处理 21.19 FPS；该历史速度不代表当前逐帧默认配置。范围及限制见 [验证记录](docs/VALIDATION.md)。
 
-先前 96.38% 是旧特征重建下的 ST-GCN 内部验证结果，存在窗口重叠和归一化数据泄漏；不能作为新前端的独立测试精度。新版骨架尚未用于重新训练行为模型。旧代码将类 0 显示为 unclear intent，其 JAAD 属性映射含义仍需按任务重新审定。
+2026-10-28 已完成新版骨架提取和两套前端的独立视频重训；共同598个测试点上，旧版准确率74.75%、新版76.92%，但Macro-F1下降，尚未证实泛化改善。另按原代码式内部验证，新版ST-GCN最终97.00%、最佳98.00%；此结果存在窗口重叠及归一化泄漏，不是独立测试精度。完整结果见 [实验索引](docs/experiments/README.md)。旧代码将类0显示为unclear intent，JAAD原属性-1实际为irrelevant。
 
 ## 第三方来源
 

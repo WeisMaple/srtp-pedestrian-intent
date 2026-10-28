@@ -1,0 +1,26 @@
+{
+  "loss_sum": 0.15902940928936005,
+  "loss_mean": 0.07714897334575653,
+  "samples": 200,
+  "accuracy": 0.97,
+  "confusion_matrix": [
+    [
+      51,
+      1,
+      1
+    ],
+    [
+      0,
+      15,
+      2
+    ],
+    [
+      1,
+      1,
+      128
+    ]
+  ],
+  "epochs": 125,
+  "elapsed_seconds": 164.37676710000002,
+  "normalization_saved_in": "D:\\SRTP_modern_internal_20261028\\datasets\\stgcn.pt"
+}

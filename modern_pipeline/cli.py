@@ -28,7 +28,7 @@ def arguments(argv=None):
     p.add_argument('--imgsz', type=int, default=640)
     p.add_argument('--conf', type=float, default=0.1)
     p.add_argument('--half', action='store_true', help='FP16 YOLO on CUDA; behavior models stay FP32')
-    p.add_argument('--classify-every', type=int, default=5, help='Infer every N observed frames; cache labels in between')
+    p.add_argument('--classify-every', type=int, default=1, help='Infer every N video frames once history is ready (default: every frame); values >1 enable cached display')
     p.add_argument('--max-gap', type=int, default=2, help='Reset history after a larger observed-frame gap')
     p.add_argument('--track-ttl', type=int, default=30)
     p.add_argument('--min-joints', type=int, default=5)

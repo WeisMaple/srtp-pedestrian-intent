@@ -1,0 +1,11 @@
+{
+  "videos": 346,
+  "people": 124,
+  "observations": 14371,
+  "windows": 996,
+  "classes": [
+    270,
+    70,
+    656
+  ]
+}

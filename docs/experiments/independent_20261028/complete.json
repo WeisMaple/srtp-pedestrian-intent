@@ -1,0 +1,7 @@
+{
+  "status": "complete",
+  "videos_extracted": 346,
+  "training_runs": 4,
+  "report": "D:\\SRTP_independent_20261028\\对比报告.md",
+  "original_weights_preserved": true
+}

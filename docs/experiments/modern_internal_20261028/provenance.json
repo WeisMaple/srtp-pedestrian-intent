@@ -1,0 +1,10 @@
+{
+  "original_training_script": "F:\\Artificial_Intelligence\\srtp\\reproduction_20261027\\train_reproduction.py",
+  "original_sha256": "e5fc1e95f2e15a4e478167010afea2946bec98386b7d1651258a7e612b73fdf8",
+  "only_training_script_changes": [
+    "ROOT path",
+    "ART path"
+  ],
+  "normalization": "all windows before random split, same as old protocol",
+  "warning": "Window overlap and normalization leakage are intentionally retained; never compare as an independent generalization score"
+}

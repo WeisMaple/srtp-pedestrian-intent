@@ -1,0 +1,10 @@
+{
+  "single_observations": 120,
+  "batch_observations": 120,
+  "shared_track_frame_keys": 120,
+  "max_pose_abs_difference": 4.23828125,
+  "mean_xy_pixel_difference": 0.013423127122223377,
+  "p95_xy_pixel_difference": 0.018740844726562483,
+  "max_confidence_difference": 0.07719607651233673,
+  "note": "Batch and single-frame CUDA inference are not numerically identical; tracking keys agree on this 60-frame check."
+}

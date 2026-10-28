@@ -1,0 +1,10 @@
+{
+  "original_sources_and_weights_unchanged": true,
+  "saved_STGCN_readback_confusion_matrix_verified": true,
+  "verified_accuracy": 0.9637795090675354,
+  "trained_weight_sha256": {
+    "stgcn": "cb65b1148fc64f5034452f74b890d301c99a581dca335efdbceb5fd1566a656a",
+    "lstm": "716b1790d262c4d54842aeb58b2f9630c2f3e498088e8c66469faa9c6915c211",
+    "lstm_wd0": "de4e55496a3fc9e36b764b814be584f34cfb5bdd893f03c94f842cdfa3ffa6b1"
+  }
+}
