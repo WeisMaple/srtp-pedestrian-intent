@@ -1,0 +1,21 @@
+ST-GCN内部验证指标（2026-10-29重新加载权重复核）
+验证样本200个；训练窗口796个。195/200验证窗口与训练历史重叠，归一化在划分前计算。
+类别0=irrelevant，类别1=不横穿，类别2=横穿。该结果不代表完整视频意图预测或独立测试性能。
+
+epoch100: Accuracy=95.5000%; Macro Precision=91.7521%; Macro Recall=92.7935%; Macro F1=0.922466; Weighted F1=0.955190
+{'label': 0, 'name': 'irrelevant', 'support': 53, 'precision': 0.9423076923076923, 'recall': 0.9245283018867925, 'f1': 0.9333333333333333}
+{'label': 1, 'name': 'not_crossing', 'support': 17, 'precision': 0.8333333333333334, 'recall': 0.8823529411764706, 'f1': 0.8571428571428571}
+{'label': 2, 'name': 'crossing', 'support': 130, 'precision': 0.9769230769230769, 'recall': 0.9769230769230769, 'f1': 0.9769230769230769}
+Confusion matrix (true rows, predicted columns): [[49, 3, 1], [0, 15, 2], [3, 0, 127]]
+
+final125: Accuracy=97.0000%; Macro Precision=94.6740%; Macro Recall=94.3077%; Macro F1=0.944875; Weighted F1=0.969976
+{'label': 0, 'name': 'irrelevant', 'support': 53, 'precision': 0.9807692307692307, 'recall': 0.9622641509433962, 'f1': 0.9714285714285714}
+{'label': 1, 'name': 'not_crossing', 'support': 17, 'precision': 0.8823529411764706, 'recall': 0.8823529411764706, 'f1': 0.8823529411764706}
+{'label': 2, 'name': 'crossing', 'support': 130, 'precision': 0.9770992366412213, 'recall': 0.9846153846153847, 'f1': 0.9808429118773946}
+Confusion matrix (true rows, predicted columns): [[51, 1, 1], [0, 15, 2], [1, 1, 128]]
+
+best121: Accuracy=98.0000%; Macro Precision=97.1591%; Macro Recall=95.1931%; Macro F1=0.961433; Weighted F1=0.979825
+{'label': 0, 'name': 'irrelevant', 'support': 53, 'precision': 1.0, 'recall': 0.9811320754716981, 'f1': 0.9904761904761905}
+{'label': 1, 'name': 'not_crossing', 'support': 17, 'precision': 0.9375, 'recall': 0.8823529411764706, 'f1': 0.9090909090909091}
+{'label': 2, 'name': 'crossing', 'support': 130, 'precision': 0.9772727272727273, 'recall': 0.9923076923076923, 'f1': 0.9847328244274809}
+Confusion matrix (true rows, predicted columns): [[52, 0, 1], [0, 15, 2], [0, 1, 129]]

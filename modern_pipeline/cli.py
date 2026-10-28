@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from .bootstrap import ARTIFACT_ROOT, PROJECT_ROOT, configure
 
-LABELS = ('unclear intent', 'not crossing', 'crossing')
+LABELS = ('irrelevant', 'not crossing', 'crossing')
 EDGES = ((0,1),(0,2),(1,3),(2,4),(5,6),(5,7),(7,9),(6,8),(8,10),
          (5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16))
 
@@ -17,6 +17,9 @@ def arguments(argv=None):
     p.add_argument('--output', type=Path, help='New .mp4 file; default is a timestamped file on D:')
     p.add_argument('--pose-model', type=Path, default=ARTIFACT_ROOT/'weights/yolo26s-pose.pt')
     p.add_argument('--device', default='auto', help='auto, cpu, cuda:0, or 0')
+    p.add_argument('--behavior-device', default='same', help='same, cpu, or cuda:0; device for LSTM and ST-GCN')
+    p.add_argument('--presentation', action='store_true', help='Show a compact intent display for video demonstrations')
+    p.add_argument('--pose-filter', action='store_true', help='Use causal pose processing with matching trained weights')
     p.add_argument('--task', choices=['predict','classify'], default='predict',
                    help='predict: classify forecast poses; classify: classify observed poses')
     p.add_argument('--weights', choices=['reproduced','original'], default='reproduced')
@@ -47,17 +50,18 @@ def arguments(argv=None):
         p.error('training_stats is fitted for reproduced weights; choose --weights reproduced')
     return a
 
-def draw_people(frame, records, task, joint_conf):
+def draw_people(frame, records, task, joint_conf, presentation=False):
     import cv2
     h,w = frame.shape[:2]
     for r in records:
         color = (60,200,70) if r['class_id'] is None else ((0,200,255),(80,210,70),(40,70,255))[r['class_id']]
         x1,y1,x2,y2 = [int(v) for v in r['bbox']]
         cv2.rectangle(frame,(max(x1,0),max(y1,0)),(min(x2,w-1),min(y2,h-1)),color,2)
-        label = 'warming %d/50' % r['history_length']
+        label = ('Collecting motion %d/50' if presentation else 'warming %d/50') % r['history_length']
         if r['class_id'] is not None:
-            label = LABELS[r['class_id']] + ' %.2f' % r['class_probability']
-        label = 'ID %d %s %s' % (r['track_id'], 'future:' if task=='predict' else 'history:', label)
+            names=('Other','Not crossing','Crossing') if presentation else LABELS
+            label = names[r['class_id']] + ' | score %.2f' % r['class_probability']
+        label = ('ID %d | %s' % (r['track_id'],label)) if presentation else ('ID %d %s %s' % (r['track_id'], 'future:' if task=='predict' else 'history:', label))
         cv2.putText(frame,label,(max(0,min(x1,w-250)),max(18,min(y1-6,h-5))),
                     cv2.FONT_HERSHEY_SIMPLEX,.5,color,1,cv2.LINE_AA)
         pose = r['_pose']
@@ -68,6 +72,11 @@ def draw_people(frame, records, task, joint_conf):
         for x,y,c in pose:
             if c >= joint_conf:
                 cv2.circle(frame,(int(x),int(y)),2,(40,240,240),-1,cv2.LINE_AA)
+    if presentation:
+        cv2.rectangle(frame,(0,0),(min(w,680),58),(30,30,30),-1)
+        cv2.putText(frame,'Pedestrian Crossing Intent',(16,24),cv2.FONT_HERSHEY_SIMPLEX,.65,(245,245,245),2,cv2.LINE_AA)
+        ready=sum(r['class_id'] is not None for r in records)
+        cv2.putText(frame,'People: %d | Predictions: %d' % (len(records),ready),(16,47),cv2.FONT_HERSHEY_SIMPLEX,.5,(210,210,210),1,cv2.LINE_AA)
     return frame
 
 def run(a):
@@ -103,9 +112,14 @@ def run(a):
     stgcn=(a.stgcn or default_g).resolve(); lstm=(a.lstm or default_l).resolve() if a.task=='predict' else None
     started=time.perf_counter()
     front=YOLOPoseTracker(a.pose_model, str(device), a.imgsz, a.conf, a.tracker, a.half)
-    behavior=BehaviorPredictor(stgcn,lstm,str(device),a.normalization,a.stats)
+    behavior_device=str(device) if a.behavior_device=='same' else a.behavior_device
+    behavior=BehaviorPredictor(stgcn,lstm,behavior_device,a.normalization,a.stats)
     store=HistoryStore(max_gap=a.max_gap,ttl=a.track_ttl)
-    if device.type=='cuda': torch.cuda.reset_peak_memory_stats(device)
+    from .pose_filter import PoseFilter
+    pose_filter=PoseFilter() if a.pose_filter else None
+    if device.type=='cuda':
+        torch.cuda.init()
+        torch.cuda.reset_peak_memory_stats(device)
     cap=cv2.VideoCapture(str(source));writer=None;records_file=None
     count=0;annotations=0;updates=0;pose_count=0;seen=set();reference=None
     frontend_seconds=behavior_seconds=0.;frame_times=[];processing_start=None;status='failed'
@@ -113,6 +127,8 @@ def run(a):
           'pose_model':str(a.pose_model.resolve()),'STGCN':str(stgcn),'LSTM':str(lstm) if lstm else None,
           'task':a.task,'normalization':a.normalization,'weights':a.weights,'tracker':a.tracker,
           'device':str(device),'ultralytics':ultralytics.__version__,'torch':torch.__version__,
+          'behavior_device':str(behavior.device),'presentation':a.presentation,
+          'pose_filter':a.pose_filter,
           'imgsz':a.imgsz,'conf':a.conf,'half_pose':a.half,'classify_every':a.classify_every,
           'max_gap':a.max_gap,'track_ttl':a.track_ttl,'min_joints':a.min_joints,
           'joint_conf':a.joint_conf,'save_keypoints':a.save_keypoints,
@@ -138,6 +154,7 @@ def run(a):
             t=time.perf_counter();people=front(frame);frontend_seconds+=time.perf_counter()-t
             ready=[];eligible=[];current=[]
             for person in people:
+                if pose_filter is not None:person.pose=pose_filter.update(person.track_id,count,person.pose)
                 seen.add(person.track_id);pose_count+=1
                 valid=(person.pose[:,2]>=a.joint_conf)&(person.pose[:,0]>0)&(person.pose[:,1]>0)
                 state=store.states.get(person.track_id)
@@ -175,7 +192,7 @@ def run(a):
                      '_pose':person.pose}
                 if pred:annotations+=1
                 records.append(row)
-            if writer is not None:writer.write(draw_people(frame,records,a.task,a.joint_conf))
+            if writer is not None:writer.write(draw_people(frame,records,a.task,a.joint_conf,a.presentation))
             serial=[]
             for row in records:
                 pose=row.pop('_pose')

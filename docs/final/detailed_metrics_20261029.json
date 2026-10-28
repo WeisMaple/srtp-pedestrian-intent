@@ -1,0 +1,194 @@
+{
+  "scope": "ST-GCN only; original overlapping-window validation, not end-to-end or independent-video testing",
+  "device": "cuda:0",
+  "validation_windows": 200,
+  "train_windows": 796,
+  "overlapping_history_windows": 195,
+  "normalization": "fitted before split on all windows",
+  "zero_division": 0,
+  "results": {
+    "epoch100": {
+      "samples": 200,
+      "correct": 191,
+      "accuracy": 0.955,
+      "macro_precision": 0.9175213675213675,
+      "macro_recall": 0.92793477332878,
+      "macro_f1": 0.9224664224664224,
+      "weighted_precision": 0.9555448717948718,
+      "weighted_recall": 0.955,
+      "weighted_f1": 0.9551904761904763,
+      "micro_precision": 0.955,
+      "micro_recall": 0.955,
+      "micro_f1": 0.955,
+      "balanced_accuracy": 0.92793477332878,
+      "confusion_matrix": [
+        [
+          49,
+          3,
+          1
+        ],
+        [
+          0,
+          15,
+          2
+        ],
+        [
+          3,
+          0,
+          127
+        ]
+      ],
+      "per_class": [
+        {
+          "label": 0,
+          "name": "irrelevant",
+          "support": 53,
+          "precision": 0.9423076923076923,
+          "recall": 0.9245283018867925,
+          "f1": 0.9333333333333333
+        },
+        {
+          "label": 1,
+          "name": "not_crossing",
+          "support": 17,
+          "precision": 0.8333333333333334,
+          "recall": 0.8823529411764706,
+          "f1": 0.8571428571428571
+        },
+        {
+          "label": 2,
+          "name": "crossing",
+          "support": 130,
+          "precision": 0.9769230769230769,
+          "recall": 0.9769230769230769,
+          "f1": 0.9769230769230769
+        }
+      ],
+      "weights": "D:\\SRTP_modern_internal_20261028\\models\\stgcn\\epoch_100_state_dict.pt",
+      "sha256": "4f3bdecdd69fac290eb7e9b57112c617cc107ac7b459cae8b53e32b9dcce587d",
+      "checkpoint_reloaded": true
+    },
+    "final125": {
+      "samples": 200,
+      "correct": 194,
+      "accuracy": 0.97,
+      "macro_precision": 0.9467404695289742,
+      "macro_recall": 0.9430774922450839,
+      "macro_f1": 0.9448748081608122,
+      "weighted_precision": 0.9700183499706401,
+      "weighted_recall": 0.97,
+      "weighted_f1": 0.969976464148878,
+      "micro_precision": 0.97,
+      "micro_recall": 0.97,
+      "micro_f1": 0.97,
+      "balanced_accuracy": 0.9430774922450839,
+      "confusion_matrix": [
+        [
+          51,
+          1,
+          1
+        ],
+        [
+          0,
+          15,
+          2
+        ],
+        [
+          1,
+          1,
+          128
+        ]
+      ],
+      "per_class": [
+        {
+          "label": 0,
+          "name": "irrelevant",
+          "support": 53,
+          "precision": 0.9807692307692307,
+          "recall": 0.9622641509433962,
+          "f1": 0.9714285714285714
+        },
+        {
+          "label": 1,
+          "name": "not_crossing",
+          "support": 17,
+          "precision": 0.8823529411764706,
+          "recall": 0.8823529411764706,
+          "f1": 0.8823529411764706
+        },
+        {
+          "label": 2,
+          "name": "crossing",
+          "support": 130,
+          "precision": 0.9770992366412213,
+          "recall": 0.9846153846153847,
+          "f1": 0.9808429118773946
+        }
+      ],
+      "weights": "D:\\SRTP_modern_internal_20261028\\models\\stgcn\\final_state_dict.pt",
+      "sha256": "3c03113eda081e8de1bbaeb4cf385f33c8bf466064a36a44329c0fe25af9b9a7",
+      "checkpoint_reloaded": true
+    },
+    "best121": {
+      "samples": 200,
+      "correct": 196,
+      "accuracy": 0.98,
+      "macro_precision": 0.9715909090909092,
+      "macro_recall": 0.951930902985287,
+      "macro_f1": 0.9614333079981936,
+      "weighted_precision": 0.9799147727272728,
+      "weighted_recall": 0.98,
+      "weighted_f1": 0.9798252536267803,
+      "micro_precision": 0.98,
+      "micro_recall": 0.98,
+      "micro_f1": 0.98,
+      "balanced_accuracy": 0.951930902985287,
+      "confusion_matrix": [
+        [
+          52,
+          0,
+          1
+        ],
+        [
+          0,
+          15,
+          2
+        ],
+        [
+          0,
+          1,
+          129
+        ]
+      ],
+      "per_class": [
+        {
+          "label": 0,
+          "name": "irrelevant",
+          "support": 53,
+          "precision": 1.0,
+          "recall": 0.9811320754716981,
+          "f1": 0.9904761904761905
+        },
+        {
+          "label": 1,
+          "name": "not_crossing",
+          "support": 17,
+          "precision": 0.9375,
+          "recall": 0.8823529411764706,
+          "f1": 0.9090909090909091
+        },
+        {
+          "label": 2,
+          "name": "crossing",
+          "support": 130,
+          "precision": 0.9772727272727273,
+          "recall": 0.9923076923076923,
+          "f1": 0.9847328244274809
+        }
+      ],
+      "weights": "D:\\SRTP_modern_internal_20261028\\models\\stgcn\\best_state_dict.pt",
+      "sha256": "956b4f50912fe0f716eba54cc7f0e19f939fb49980879aaf40d99c50227d918a",
+      "checkpoint_reloaded": true
+    }
+  }
+}

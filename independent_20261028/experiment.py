@@ -11,7 +11,6 @@ OUT=pathlib.Path(r'D:\SRTP_independent_20261028'); OLD=pathlib.Path(r'D:\SRTP_re
 torch.set_num_threads(2); torch.backends.cudnn.deterministic=True;torch.backends.cudnn.benchmark=False;torch.backends.cudnn.allow_tf32=False
 SPLITS={s:(ROOT/'data/split_ids/all_videos'/f'{s}.txt').read_text().split() for s in ['train','val','test']}
 assert not(set(SPLITS['train'])&set(SPLITS['test']) or set(SPLITS['val'])&set(SPLITS['test']) or set(SPLITS['train'])&set(SPLITS['val']))
-OUT.mkdir(exist_ok=True);(OUT/'split.json').write_text(json.dumps(SPLITS,indent=2))
 
 def gt(video):
     labels={p.get('id'):{-1:0,0:1,1:2}[int(p.get('crossing'))] for p in ET.parse(ROOT/'data/annotations_attributes'/f'{video}_attributes.xml').getroot().findall('pedestrian')}
@@ -120,7 +119,7 @@ def metrics(truth,pred):
     tp=cm.diagonal();f1=2*tp/np.maximum(1,cm.sum(0)+cm.sum(1))
     return dict(n=len(truth),accuracy=float(tp.sum()/max(1,len(truth))),macro_f1=float(f1.mean()),crossing_recall=float(tp[2]/max(1,cm[2].sum())),confusion_matrix=cm.tolist())
 
-def causal_test(variant):
+def causal_test(variant, skip_reference_first=True):
     # Labels are used only to score an already-built tracker history, never to
     # repair identity switches, reset histories, or supply missing observations.
     from modern_pipeline.history import HistoryStore
@@ -136,7 +135,9 @@ def causal_test(variant):
                 if ((pose[:,2]>=.2)&(pose[:,0]>0)&(pose[:,1]>0)).sum()<5:continue
                 state=store.update(int(row[1]),f,pose)
                 if state.ready:
-                    if video not in refs:refs[video]=state.as_array().copy();continue
+                    if video not in refs:
+                        refs[video]=state.as_array().copy()
+                        if skip_reference_first:continue
                     ready.append((row[2:],state.as_array().copy()))
             if f%10 or not ready or not frames[f]:continue
             a=np.array([r[0] for r in ready]);ann=frames[f];b=np.array([r[2] for r in ann]);inter=np.maximum(0,np.minimum(a[:,None,2:],b[None,:,2:])-np.maximum(a[:,None,:2],b[None,:,:2])).prod(2)
@@ -169,6 +170,7 @@ def evaluate(variant,data):
     (dest/'test_predictions.json').write_text(json.dumps(rows));(dest/'test_metrics.json').write_text(json.dumps(results,indent=2));print('TEST',variant,results,flush=True)
 
 if __name__=='__main__':
+    OUT.mkdir(exist_ok=True);(OUT/'split.json').write_text(json.dumps(SPLITS,indent=2))
     p=argparse.ArgumentParser();p.add_argument('--variant',choices=['legacy','modern'],required=True);a=p.parse_args()
     data,stats=build(a.variant)
     for kind in ['stgcn','lstm']:train(a.variant,data,stats,kind)

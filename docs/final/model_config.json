@@ -1,0 +1,14 @@
+{
+  "name": "SRTP classroom final",
+  "version": "1.0.0",
+  "normalization": "legacy_pair",
+  "pose_filter": false,
+  "stgcn": "stgcn.pt",
+  "lstm": "lstm.pt",
+  "stats": "normalization.pt",
+  "pose_model": "yolo26s-pose.pt",
+  "classifier_epoch": 121,
+  "classifier_metric_scope": "ST-GCN original-window internal validation only",
+  "classifier_accuracy": 0.98,
+  "video_metric_scope": "This assembled pipeline requires separate evaluation; internal classification accuracy does not measure the video pipeline"
+}

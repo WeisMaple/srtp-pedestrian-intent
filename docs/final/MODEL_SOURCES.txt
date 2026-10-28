@@ -1,0 +1,4 @@
+ST-GCN: user-requested internal-validation checkpoint, epoch121; SHA256 recorded in manifest.
+LSTM: existing YOLO26 feature training, validation-MSE checkpoint epoch68. The two components were trained separately; no 98% end-to-end claim.
+YOLO26s-Pose: https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo26s-pose.pt ; see https://github.com/ultralytics/ultralytics for upstream license.
+Original network structures and third-party source notices are in the code repository.

@@ -9,6 +9,16 @@ import numpy as np
 import torch
 from st_gcn import Model, SkeletonLSTM
 
+@torch.inference_mode()
+def forecast_with_statistics(lstm, poses, mean, std):
+    """Shared training-feature/runtime forecast, using saved training statistics."""
+    series=(poses-mean)/std
+    for _ in range(5):
+        with torch.backends.cudnn.flags(benchmark=False,deterministic=True,allow_tf32=False):
+            forecast=lstm(series.reshape(len(poses),50,51))
+        series=torch.cat((series[:,10:],forecast),dim=1)
+    return series*std+mean
+
 
 class BehaviorPredictor:
     """Predict intent from B x 50 x 17 x 3 histories.
@@ -125,13 +135,7 @@ class BehaviorPredictor:
             else:
                 mean = poses.mean(dim=1, keepdim=True)
                 std = poses.std(dim=1, correction=0, keepdim=True) + self.EPSILON
-            series = (poses - mean) / std
-            for _ in range(5):
-                # TF32 errors can accumulate through five deep recurrent passes.
-                with torch.backends.cudnn.flags(benchmark=False, deterministic=True, allow_tf32=False):
-                    forecast = self.lstm(series.reshape(batch, 50, 51))
-                series = torch.cat((series[:, 10:], forecast), dim=1)
-            poses = series * std + mean
+            poses = forecast_with_statistics(self.lstm,poses,mean,std)
         if not torch.isfinite(poses).all():
             raise RuntimeError('Behavior forecast contains non-finite values')
         if self.normalization == 'training_stats':

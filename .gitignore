@@ -7,6 +7,7 @@
 !/requirements-base.txt
 !/*.py
 !/run_prediction.ps1
+!/run_demo.ps1
 !/api/
 !/deepsort/
 !/yolo/

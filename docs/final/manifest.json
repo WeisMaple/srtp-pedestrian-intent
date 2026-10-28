@@ -1,0 +1,26 @@
+{
+  "lstm.pt": {
+    "bytes": 20743359,
+    "sha256": "6bd9e24d68b4d8071970e64756fe0666c6d22f77dcaddc34abdd21a1b8493817"
+  },
+  "model_config.json": {
+    "bytes": 527,
+    "sha256": "b308e9ca8b2cd8cd6ebc78eeaff8d056760864624cf5aa4c515e211c3f47414d"
+  },
+  "MODEL_SOURCES.txt": {
+    "bytes": 493,
+    "sha256": "b0a456455e0aa59835796fec305f15237d38026dd55296c7b9f54786e357d24d"
+  },
+  "normalization.pt": {
+    "bytes": 22784,
+    "sha256": "3df163eb80892be86091a2853188b90a12ac5ebccedbc687034ccc62c12d0595"
+  },
+  "stgcn.pt": {
+    "bytes": 12386970,
+    "sha256": "956b4f50912fe0f716eba54cc7f0e19f939fb49980879aaf40d99c50227d918a"
+  },
+  "yolo26s-pose.pt": {
+    "bytes": 24151790,
+    "sha256": "a083adb42303728ae14c4bd6bd56d80da46f82fb2564dbd6f31dcc92ea321646"
+  }
+}
