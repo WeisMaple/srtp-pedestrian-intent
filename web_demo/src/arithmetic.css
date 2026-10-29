@@ -1,0 +1,285 @@
+.arithmetic-theater,.at-transform,.at-memory {
+    --at-ink: #163f3b;
+    --at-muted: #91aaa8;
+    --at-border: #36534f;
+    --at-green: #70d7aa;
+    --at-violet: #bca6ea;
+    --at-blue: #8bb6f0;
+    --at-paper: #f1f2e9;
+    --at-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #d8e9df;
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+}
+.arithmetic-theater { container-type: inline-size; margin: 20px 0 24px; border: 1px solid var(--at-border); border-radius: 9px; padding: 22px 23px 16px; background: #10252d; }
+.arithmetic-theater button,.arithmetic-theater input { -webkit-tap-highlight-color: transparent; }
+.arithmetic-theater button:focus-visible,.arithmetic-theater input:focus-visible { outline: 2px solid #c6f3c7; outline-offset: 3px; }
+.arithmetic-theater button { cursor: pointer; font: inherit; }
+.arithmetic-theater button:disabled { cursor: default; opacity: .3; }
+.at-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; padding-bottom: 20px; }
+.at-eyebrow { font-size: 9px; line-height: 1.5; letter-spacing: 1.7px; color: #92c2a9; font-weight: 600; }
+.arithmetic-theater .at-header h3,.at-transform .at-transform-heading h3,.at-memory .at-memory-header h3 { font-size: 17px; line-height: 1.5; color: #e5eee6; font-weight: 550; margin: 7px 0 0; letter-spacing: -.2px; }
+.at-header p { margin: 7px 0 0; font-size: 11px; line-height: 1.8; color: var(--at-muted); }
+.at-step-badge { display: flex; align-items: baseline; gap: 7px; padding: 4px 0 0; flex-shrink: 0; }
+.at-step-badge b { font: 29px/1 var(--at-mono); font-weight: 400; color: #d7edbd; letter-spacing: -1.4px; }
+.at-step-badge span { color: #92a9a3; font-size: 11px; }
+.at-array-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.at-array-hint { color: #9bb8ad; font-size: 10px; }
+.at-pager { display: flex; align-items: center; gap: 10px; }
+.arithmetic-theater .at-pager button { height: 27px; width: 32px; padding: 0; border: 1px solid #4b645b; border-radius: 4px; color: #c7dec9; background: #1b3538; font-size: 15px; }
+.at-pager > span { min-width: 105px; text-align: center; font: 10px var(--at-mono); color: #c4d8c9; }
+.at-pager small { color: #95aaa5; font-size: 9px; }
+.arithmetic-theater .at-pager button:hover:not(:disabled) { background: #2b4b43; border-color: #7dba96; }
+.at-tensor-pair { display: grid; grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr); gap: 9px; align-items: center; margin-bottom: 20px; }
+.at-tensor-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 8px; }
+.at-tensor-label b { color: #a7d7b5; font-size: 11px; font-weight: 500; }
+.at-weights .at-tensor-label b { color: var(--at-violet); }
+.at-tensor-label > span { color: #91a9a6; font: 9px var(--at-mono); white-space: nowrap; }
+.at-tensor-grid { display: grid; grid-template-columns: repeat(var(--tensor-columns),minmax(0,1fr)); gap: 3px; }
+.arithmetic-theater .at-tensor-grid button { position: relative; height: 23px; min-width: 0; padding: 0; border-radius: 2px; border: 1px solid #ffffff07; color: #effbf0; font: 8px/1 var(--at-mono); overflow: visible; }
+.at-tensor-grid button.selected::after { content: ''; position: absolute; inset: -3px; border: 2px solid #e3f7a6; border-radius: 3px; pointer-events: none; z-index: 1; }
+.at-tensor-grid button.selected { z-index: 2; }
+.at-tensor-grid button:hover { box-shadow: inset 0 0 0 1px #e8f8d6; }
+.at-tensor-axis { display: flex; justify-content: space-between; color: #8ca59d; font-size: 9px; gap: 8px; margin-top: 8px; }
+.at-pair-operator { font-size: 24px; color: #729486; text-align: center; }
+.at-computation-paper { color: var(--at-ink); background: var(--at-paper); border: 1px solid #e2e9d6; border-radius: 7px; overflow: hidden; box-shadow: 0 8px 28px #07191c25; }
+.at-paper-topline { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 13px 17px; border-bottom: 1px solid #ccd4c64d; font-size: 10px; line-height: 1.6; color: #426258; }
+.at-paper-topline > span { display: flex; gap: 7px; align-items: center; }
+.at-paper-topline i { display: inline-block; width: 5px; height: 5px; background: #3b8b5b; border-radius: 50%; flex-shrink: 0; }
+.at-paper-topline code { color: #728374; font: 10px var(--at-mono); white-space: nowrap; }
+.at-arithmetic-stage { width: 100%; height: auto; display: block; font-family: var(--at-mono); }
+.at-stage-compact { display: none; }
+.at-stage-guides path { fill: none; stroke: #c8d1c5; stroke-width: 1.4; }
+.at-stage-traces path { fill: none; stroke: #389869; stroke-width: 2.4; stroke-linecap: round; }
+.at-stage-traces path.weight { stroke: #9b7bc6; }
+.at-source-slot rect { fill: #e2e8dc; stroke: #d0d9cb; stroke-width: 1; }
+.at-source-slot text { fill: #839283; font-size: 16px; }
+.at-source-slot text:nth-of-type(-n+2) { fill: #58745d; font-size: 12px; }
+.at-svg-token rect { stroke-width: 1.1; }
+.at-svg-token text { font-size: 16px; font-weight: 550; }
+.at-token-input rect,.at-token-product rect { fill: #cae8d6; stroke: #5fa17a; }
+.at-token-input text,.at-token-product text { fill: #24593d; }
+.at-token-weight rect { fill: #e5dcef; stroke: #ac90c6; }
+.at-token-weight text { fill: #714d8f; }
+.at-token-negative rect { fill: #d7e6f8; stroke: #82a6d8; }
+.at-token-negative text { fill: #356393; }
+.at-svg-token .at-token-name { font-size: 11px; font-weight: 400; }
+.at-product-node circle { fill: #e6ebdf; stroke: #bdcbb6; stroke-width: 1.5; }
+.at-product-node.active circle { fill: #d4e7c3; stroke: #7a9d60; }
+.at-operation-symbol { fill: #5d7c51; font-size: 30px; font-family: inherit; }
+.at-product-node.active .at-operation-symbol { font-size: 12px; }
+.at-operation-value { fill: #36582e; font-size: 14px; font-weight: 600; }
+.at-stage-label { fill: #64775d; font: 12px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.at-accumulator rect { fill: #f7f8ef; stroke: #78976b; stroke-width: 1.4; }
+.at-accumulator.active rect { fill: #e3efc9; stroke: #6d8d42; stroke-width: 2; }
+.at-accumulator-count { font-size: 10px; fill: #7c8965; }
+.at-accumulator-value { fill: #315936; font-size: 21px; letter-spacing: -.6px; font-weight: 550; }
+.at-add-label { font: 11px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; fill: #72915d; }
+.at-result-node rect { fill: #e7ebe1; stroke: #ccd3c7; stroke-width: 1.3; }
+.at-result-node.active rect { fill: #286747; stroke: #286747; }
+.at-result-value { font-size: 19px; font-weight: 550; fill: #9ba88d; letter-spacing: -.6px; }
+.at-result-node.active .at-result-value { fill: #ecf8d7; }
+.at-result-node.active .at-add-label { fill: #3d7650; }
+.at-bias-label { fill: #7d6c46; font-size: 11px; }
+.at-bias-arrow { fill: none; stroke: #a48e51; stroke-width: 2; }
+.at-stage-caption { font: 11px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; fill: #829078; }
+.at-current-equation { display: flex; align-items: center; justify-content: center; gap: 16px; border-top: 1px solid #d8dfcf; margin: 0 18px; padding: 14px 0 12px; }
+.at-current-equation > span { color: #7b886b; font-size: 10px; flex-shrink: 0; }
+.at-current-equation code { display: flex; align-items: baseline; gap: 16px; font: 15px var(--at-mono); }
+.at-current-equation b { color: #4e6842; font-weight: 550; }
+.at-current-equation b.at-input-number { color: #2b8054; }
+.at-current-equation b.at-weight-number { color: #8764a3; }
+.at-current-equation i { font-style: normal; color: #95a083; }
+.at-operation-scrub { display: flex; align-items: center; gap: 14px; padding: 4px 20px 17px; color: #78866b; font-size: 10px; }
+.at-operation-scrub input { flex: 1; width: 100%; min-width: 0; height: 4px; margin: 0; padding: 0; accent-color: #5b8545; cursor: pointer; }
+.at-operation-scrub > label,.at-operation-scrub > span { white-space: nowrap; }
+.at-operation-scrub > span { min-width: 75px; text-align: right; }
+.arithmetic-theater .at-operation-scrub input:focus-visible { outline-color: #3f7c47; }
+.at-term-window { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px,1fr); gap: 5px; margin-top: 16px; padding: 2px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #536c5d #152d31; }
+.arithmetic-theater .at-term-window button { padding: 9px 8px 8px; text-align: left; border: 1px solid #34504b; border-radius: 4px; background: #142c31; color: #b3cabd; font-family: var(--at-mono); }
+.at-term-window button.selected { border-color: #bdce8b; background: #30483c; }
+.at-term-window button:hover { border-color: #89b395; }
+.at-term-index { display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #799c8b; margin-bottom: 10px; }
+.at-term-index i { font-style: normal; color: #b5cd8b; font-size: 9px; }
+.at-term-window button.selected .at-term-index { color: #d1dfa6; }
+.at-term-input,.at-term-weight { display: block; font-size: 10px; margin-top: 5px; line-height: 1.4; }
+.at-term-input { color: #91d3a7; }
+.at-term-weight { color: var(--at-violet); }
+.at-term-window button > b { display: block; font-size: 11px; padding-top: 7px; margin-top: 7px; border-top: 1px solid #45655366; color: #ceebaf; font-weight: 500; white-space: nowrap; }
+.at-term-window button > b.negative { color: #9dc4f6; }
+.at-term-selector { display: flex; align-items: center; gap: 15px; margin: 16px 2px 18px; font-size: 10px; color: #9db4a9; }
+.at-term-selector > label { white-space: nowrap; }
+.at-term-selector > input { flex: 1; width: 100%; min-width: 0; height: 4px; padding: 0; accent-color: #b7ce88; cursor: pointer; }
+.at-term-selector > output { min-width: 56px; text-align: right; font-family: var(--at-mono); color: #d2dfa9; }
+.arithmetic-theater .at-term-selector > button { color: #adcdb6; font-size: 10px; white-space: nowrap; border: 0; border-bottom: 1px solid #758b67; padding: 3px 0; border-radius: 0; background: transparent; }
+.at-sum-ledger { display: grid; grid-template-columns: 1fr 1fr 1fr; padding-top: 17px; border-top: 1px solid #344d44; gap: 22px; }
+.at-sum-ledger > div { min-width: 0; }
+.at-sum-ledger > div + div { border-left: 1px solid #344d44; padding-left: 20px; }
+.at-sum-ledger > div > span { display: block; font-size: 11px; color: #abbead; }
+.at-sum-ledger > div > span > small { font-size: 9px; margin-left: 5px; color: #7f9d8e; white-space: nowrap; }
+.at-sum-ledger b { display: block; font: 22px var(--at-mono); font-weight: 400; color: #d7e7c1; letter-spacing: -.6px; margin: 9px 0 5px; overflow-wrap: anywhere; }
+.at-sum-ledger > div > small { font-size: 9px; color: #90a79b; line-height: 1.5; }
+.at-sum-ledger > div.is-emitted b { color: #bbef9b; }
+.at-data-note { margin: 13px 0 0; color: #8da59a; font-size: 9px; line-height: 1.8; }
+.arithmetic-theater.at-empty { padding: 26px; min-height: 160px; }
+.arithmetic-theater.at-empty h3 { color: #d9e8db; margin: 8px 0; font-size: 17px; }
+.at-empty p { color: #a5beae; font-size: 12px; line-height: 1.8; }
+.at-empty > span { color: #7f9f92; font-size: 11px; }
+.at-transform { padding: 20px 23px 17px; margin: 20px 0; border: 1px solid var(--at-border); border-radius: 8px; background: #132b31; container-type: inline-size; }
+.at-transform-heading { display: grid; grid-template-columns: 1fr auto; gap: 0 15px; align-items: end; }
+.at-transform-heading > .at-eyebrow { grid-column: 1/-1; }
+.at-transform-heading > code { color: #a2c3ae; font: 11px var(--at-mono); padding-bottom: 3px; line-height: 1.5; }
+.at-transform-body { display: grid; grid-template-columns: minmax(100px,1fr) minmax(200px,2.2fr) minmax(100px,1fr); align-items: center; margin-top: 16px; gap: 12px; }
+.at-transform-value { text-align: center; }
+.at-transform-value > span { display: block; font-size: 11px; color: #aec5b5; }
+.at-transform-value > b { display: block; font: 25px var(--at-mono); color: #dbe9c3; margin: 10px 0; font-weight: 450; }
+.at-transform-value > small { color: #85a494; font-size: 9px; line-height: 1.6; }
+.at-transform-output { padding: 17px 8px; border: 1px solid #3c5b4b; border-radius: 5px; background: #19372f; }
+.at-transform-output.ready { border-color: #6f9961; background: #234632; }
+.at-transform-output.ready > b { color: #c3efa7; }
+.at-function-plot { width: 100%; display: block; overflow: visible; }
+.at-function-plot text { fill: #84a48d; font: 10px var(--at-mono); }
+.at-function-grid { stroke: #324e42; stroke-width: .8; fill: none; }
+.at-function-axis { fill: none; stroke: #607861; stroke-width: 1; }
+.at-function-curve { fill: none; stroke: #a8d18d; stroke-width: 2.2; }
+.at-function-projection { fill: none; stroke: #c8ae73; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.at-function-dot { fill: #e8d496; stroke: #152d2b; stroke-width: 2; }
+.at-function-plot .at-function-annotation { fill: #eddda3; font-size: 12px; }
+.at-memory { border-top: 1px solid #3b574e; padding: 22px 0 8px; margin: 20px 0; container-type: inline-size; }
+.at-memory-flow { display: grid; grid-template-columns: 1fr 25px 1fr 25px 1.1fr; gap: 15px; margin-top: 19px; align-items: center; }
+.at-memory-branch,.at-memory-cell { border-left: 2px solid #56735c; padding: 4px 0 6px 15px; }
+.at-memory-branch > span,.at-memory-cell > span { display: block; font-size: 11px; color: #9cb7a5; }
+.at-memory-branch code { display: block; color: #adba9e; font: 12px var(--at-mono); margin: 12px 0 9px; }
+.at-memory-branch code > i { color: #748d6f; font-style: normal; }
+.at-memory-branch > b,.at-memory-cell > b { display: block; color: #b9cd9e; font: 22px var(--at-mono); font-weight: 400; margin-bottom: 6px; }
+.at-memory-branch small,.at-memory-cell small { color: #829e8c; font-size: 9px; }
+.at-memory-branch.active { border-left-color: #a2c58c; }
+.at-memory-branch.active > b { color: #e0eac1; }
+.at-memory-operator { color: #91b282; font-size: 22px; text-align: center; }
+.at-memory-cell { padding: 15px 18px; border: 1px solid #496e4d; border-radius: 6px; background: #16392e; }
+.at-memory-cell.active { background: #294d34; border-color: #9abd7a; }
+.at-memory-cell > b { font-size: 27px; margin-top: 14px; color: #d9edb5; }
+.at-memory-bar { height: 3px; background: #43623f; margin: 13px 0 8px; }
+.at-memory-bar > i { display: block; width: 100%; height: 100%; background: #c2d985; transform-origin: left; }
+.at-memory-hidden { margin-top: 25px; padding-top: 18px; border-top: 1px solid #345043; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.at-memory-hidden > span { color: #95b19f; font-size: 10px; }
+.at-memory-hidden > code { color: #b9cfa5; font: 12px var(--at-mono); }
+.at-memory-hidden > div { display: flex; align-items: center; gap: 12px; font: 14px var(--at-mono); margin-left: auto; }
+.at-memory-hidden b { color: #adc99e; font-weight: 400; }
+.at-memory-hidden i { color: #70916c; font-style: normal; }
+.at-memory-hidden strong { color: #d7ebaf; background: #29442f; border: 1px solid #486546; border-radius: 4px; padding: 9px 12px; font-weight: 500; }
+.at-memory-hidden strong.active { border-color: #a4c37e; background: #3d5e37; }
+@container (max-width:720px) {
+    .at-tensor-grid button > span { font-size: 7px; }
+    .at-tensor-axis > span:last-child { display: none; }
+    .at-sum-ledger { gap: 12px; }
+    .at-sum-ledger > div + div { padding-left: 12px; }
+    .at-sum-ledger b { font-size: 17px; }
+    .at-sum-ledger > div > span > small { display: block; margin: 5px 0 0; }
+    .at-transform-heading { display: block; }
+    .at-transform-heading > code { display: block; margin-top: 10px; }
+    .at-memory-flow { gap: 7px; }
+    .at-memory-branch { padding-left: 9px; }
+    .at-memory-branch code { font-size: 10px; }
+    .at-memory-cell { padding: 12px; }
+}
+@container (max-width:570px) {
+    .at-header { gap: 10px; padding-bottom: 15px; }
+    .at-header .at-eyebrow { font-size: 8px; letter-spacing: 1px; }
+    .arithmetic-theater .at-header h3 { font-size: 15px; }
+    .at-step-badge { gap: 4px; }
+    .at-step-badge b { font-size: 25px; }
+    .at-step-badge span { font-size: 9px; }
+    .at-tensor-pair { grid-template-columns: minmax(0,1fr) 18px minmax(0,1fr); gap: 6px; margin-bottom: 15px; }
+    .at-tensor-grid { grid-template-columns: repeat(8,minmax(0,1fr)); gap: 3px; }
+    .at-tensor-grid button > span { display: none; }
+    .arithmetic-theater .at-tensor-grid button { height: 17px; }
+    .at-tensor-label { flex-wrap: wrap; gap: 4px; }
+    .at-tensor-label > span { font-size: 8px; }
+    .at-array-hint { font-size: 9px; }
+    .at-pager { gap: 4px; }
+    .at-pager > span { min-width: 80px; font-size: 9px; }
+    .arithmetic-theater .at-pager button { width: 28px; height: 28px; }
+    .at-stage-wide { display: none; }
+    .at-stage-compact { display: block; }
+    .at-paper-topline { padding: 11px; font-size: 9px; }
+    .at-paper-topline > code { font-size: 8px; }
+    .at-current-equation { display: block; padding-top: 12px; text-align: center; margin: 0 10px; }
+    .at-current-equation > span { display: block; font-size: 9px; margin-bottom: 8px; }
+    .at-current-equation code { justify-content: center; gap: 8px; font-size: 11px; }
+    .at-operation-scrub { padding: 4px 12px 17px; gap: 8px; font-size: 9px; }
+    .at-operation-scrub > span { min-width: 64px; }
+    .at-term-selector { gap: 10px; flex-wrap: wrap; }
+    .at-term-selector > output { min-width: 46px; }
+    .at-term-selector > button { margin-left: auto; }
+    .at-sum-ledger { grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+    .at-sum-ledger > div:last-child { grid-column: 1/-1; border: 1px solid #55704d; padding: 11px 13px; border-radius: 5px; display: grid; grid-template-columns: 1fr auto; align-items: center; background: #1b362f; }
+    .at-sum-ledger > div:last-child b { grid-row: 1/3; grid-column: 2; margin: 0 0 0 10px; font-size: 23px; }
+    .at-sum-ledger > div:last-child > small { margin-top: 4px; }
+    .at-transform-body { grid-template-columns: 1fr 1fr; gap: 13px; }
+    .at-function-plot { grid-column: 1/-1; grid-row: 1; }
+    .at-transform-value { padding: 14px; }
+    .at-transform-value > b { font-size: 22px; }
+    .at-memory-flow { grid-template-columns: 1fr 20px 1fr; gap: 10px; }
+    .at-memory-flow > .at-memory-operator:nth-of-type(2) { display: none; }
+    .at-memory-cell { grid-column: 1/-1; text-align: center; margin-top: 8px; }
+    .at-memory-cell > b { margin-top: 8px; }
+    .at-memory-hidden { gap: 10px; }
+    .at-memory-hidden > div { width: 100%; justify-content: space-between; margin-top: 7px; font-size: 11px; gap: 5px; }
+    .at-memory-hidden strong { padding: 9px 8px; }
+}
+@media (max-width:600px) {
+    .arithmetic-theater,.at-transform { padding: 16px 12px 13px; border-radius: 6px; }
+}
+
+/* The default lens keeps the live arithmetic in view; detailed term cards stay available on demand. */
+.arithmetic-theater.at-compact { margin: 12px 0 16px; padding: 13px 15px 11px; }
+.at-compact .at-header { gap: 12px; padding-bottom: 11px; }
+.at-compact .at-header .at-eyebrow { display: none; }
+.arithmetic-theater.at-compact .at-header h3 { margin-top: 0; font-size: 14px; line-height: 1.45; }
+.at-compact .at-header p { font-size: 10px; line-height: 1.55; margin-top: 4px; }
+.at-compact .at-step-badge { padding-top: 1px; }
+.at-compact .at-step-badge b { font-size: 23px; }
+.at-compact .at-array-toolbar { margin-bottom: 8px; }
+.at-compact .at-tensor-pair { margin-bottom: 11px; gap: 7px; grid-template-columns: minmax(0,1fr) 22px minmax(0,1fr); }
+.at-compact .at-tensor-label { margin-bottom: 6px; }
+.at-compact .at-tensor-grid { gap: 2px; }
+.arithmetic-theater.at-compact .at-tensor-grid button { height: 15px; }
+.at-compact .at-tensor-grid button > span { font-size: 7px; }
+.at-compact .at-tensor-axis { display: none; }
+.at-compact .at-paper-topline { padding: 8px 12px; }
+.at-compact .at-stage-wide { max-height: 220px; }
+.at-stage-compact { max-width: 360px; margin: 0 auto; }
+.at-compact .at-stage-compact { width: 280px; max-width: 100%; }
+.at-compact .at-current-equation { padding: 9px 0 8px; }
+.at-compact .at-current-equation code { font-size: 13px; }
+.at-compact .at-operation-scrub { padding: 3px 15px 12px; }
+.at-terms-details { border-bottom: 1px solid #344d44; padding: 8px 0; margin-top: 6px; }
+.at-terms-details > summary { cursor: pointer; color: #b8cdb5; font-size: 10px; line-height: 1.6; }
+.at-terms-details > summary > span { color: #7f9c8c; font-size: 9px; margin-left: 12px; }
+.at-terms-details > summary:focus-visible { outline: 2px solid #c6f3c7; outline-offset: 3px; }
+.at-terms-details .at-term-window { margin-top: 9px; margin-bottom: 3px; }
+.at-compact .at-term-selector { margin: 11px 2px 12px; gap: 10px; }
+.at-compact .at-sum-ledger { padding-top: 11px; gap: 13px; }
+.at-compact .at-sum-ledger b { font-size: 18px; margin: 6px 0 4px; }
+.at-compact .at-sum-ledger > div + div { padding-left: 13px; }
+.at-compact .at-data-note { margin-top: 8px; font-size: 9px; line-height: 1.6; }
+@container (max-width:570px) {
+    .arithmetic-theater.at-compact .at-tensor-grid button { height: 10px; }
+    .at-compact .at-current-equation code { font-size: 11px; }
+    .at-compact .at-sum-ledger b { font-size: 16px; }
+    .at-compact .at-sum-ledger > div:last-child { padding: 9px 11px; }
+    .at-compact .at-sum-ledger > div:last-child b { font-size: 20px; margin: 0 0 0 10px; }
+    .at-compact .at-terms-details > summary > span { font-size: 8px; margin-left: 5px; }
+}
+
+/* Lead the compact lens with the moving arithmetic; tensors support inspection below it. */
+.arithmetic-theater.at-compact { display: flex; flex-direction: column; }
+.at-compact > .at-header { order: 0; }
+.at-compact > .at-computation-paper { order: 1; }
+.at-compact > .at-array-toolbar { order: 2; margin-top: 13px; }
+.at-compact > .at-tensor-pair { order: 3; }
+.at-compact > .at-terms-details { order: 4; }
+.at-compact > .at-term-selector { order: 5; }
+.at-compact > .at-sum-ledger { order: 6; }
+.at-compact > .at-data-note { order: 7; }

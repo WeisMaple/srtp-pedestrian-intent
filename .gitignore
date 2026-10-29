@@ -5,6 +5,8 @@
 !/README.md
 !/THIRD_PARTY_NOTICES.md
 !/requirements-base.txt
+!/requirements-web.txt
+!/web_demo/
 !/*.py
 !/run_prediction.ps1
 !/run_demo.ps1
@@ -40,6 +42,9 @@ __pycache__/
 .idea/
 .vscode/
 .venv/
+node_modules/
+/web_demo/dist/
+/docs/design/*-concept.png
 .env
 .env.*
 *.pem

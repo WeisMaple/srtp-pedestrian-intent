@@ -10,13 +10,16 @@ import torch
 from st_gcn import Model, SkeletonLSTM
 
 @torch.inference_mode()
-def forecast_with_statistics(lstm, poses, mean, std):
+def forecast_with_statistics(lstm, poses, mean, std, on_event=None):
     """Shared training-feature/runtime forecast, using saved training statistics."""
     series=(poses-mean)/std
-    for _ in range(5):
+    for step in range(5):
         with torch.backends.cudnn.flags(benchmark=False,deterministic=True,allow_tf32=False):
             forecast=lstm(series.reshape(len(poses),50,51))
         series=torch.cat((series[:,10:],forecast),dim=1)
+        if on_event is not None:
+            on_event({'kind': 'forecast_step', 'stage': 4, 'step': step + 1,
+                      'poses': (forecast.reshape(len(poses), 10, 17, 3) * std + mean).cpu().numpy().copy()})
     return series*std+mean
 
 
@@ -105,7 +108,7 @@ class BehaviorPredictor:
 
     @torch.inference_mode()
     def predict(self, histories: np.ndarray,
-                reference: Optional[np.ndarray] = None) -> Dict[str, object]:
+                reference: Optional[np.ndarray] = None, on_event=None) -> Dict[str, object]:
         """Return class_ids[B], probabilities[B,3], raw future_poses and horizon.
 
         Forecast mode recursively predicts five blocks of 10 future frames;
@@ -135,7 +138,9 @@ class BehaviorPredictor:
             else:
                 mean = poses.mean(dim=1, keepdim=True)
                 std = poses.std(dim=1, correction=0, keepdim=True) + self.EPSILON
-            poses = forecast_with_statistics(self.lstm,poses,mean,std)
+            if on_event is not None:
+                on_event({'kind': 'stage', 'stage': 4})
+            poses = forecast_with_statistics(self.lstm,poses,mean,std,on_event=on_event)
         if not torch.isfinite(poses).all():
             raise RuntimeError('Behavior forecast contains non-finite values')
         if self.normalization == 'training_stats':
@@ -150,6 +155,8 @@ class BehaviorPredictor:
             std = std.clamp_min(self.EPSILON)
             normalized = ((pairs - mean) / std)[:, 1]
             inputs = normalized.permute(0, 3, 1, 2).unsqueeze(-1)
+        if on_event is not None:
+            on_event({'kind': 'stage', 'stage': 5})
         with torch.backends.cudnn.flags(benchmark=False, deterministic=True, allow_tf32=False):
             probabilities = self.stgcn(inputs).softmax(dim=1)
         if not torch.isfinite(probabilities).all():

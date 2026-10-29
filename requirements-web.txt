@@ -1,0 +1,6 @@
+# Install alongside the validated base/PyTorch/modern environment.
+fastapi==0.128.8
+uvicorn==0.39.0
+python-multipart==0.0.20
+# Required by API regression tests.
+httpx==0.28.1

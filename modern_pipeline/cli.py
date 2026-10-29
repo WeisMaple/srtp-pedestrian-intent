@@ -11,6 +11,10 @@ LABELS = ('irrelevant', 'not crossing', 'crossing')
 EDGES = ((0,1),(0,2),(1,3),(2,4),(5,6),(5,7),(7,9),(6,8),(8,10),
          (5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16))
 
+
+class PredictionCancelled(RuntimeError):
+    """A caller requested cancellation at a decoded-frame boundary."""
+
 def arguments(argv=None):
     p = argparse.ArgumentParser(description='PyTorch-only YOLO26 Pose pedestrian intent pipeline')
     p.add_argument('--input', required=True, type=Path)
@@ -79,8 +83,10 @@ def draw_people(frame, records, task, joint_conf, presentation=False):
         cv2.putText(frame,'People: %d | Predictions: %d' % (len(records),ready),(16,47),cv2.FONT_HERSHEY_SIMPLEX,.5,(210,210,210),1,cv2.LINE_AA)
     return frame
 
-def run(a):
+def run(a, on_event=None, cancel=None, on_computation=None):
     configure()
+    if on_computation is None and getattr(a, 'live_telemetry', False):
+        on_computation = on_event
     import cv2
     import numpy as np
     import torch
@@ -135,13 +141,22 @@ def run(a):
           'label_map':{str(i):v for i,v in enumerate(LABELS)},
           'forecast_observations':50 if lstm else 0,
           'note':'New frontend changes skeleton distribution; previous validation scores do not apply.'}
+    live = None
     try:
+        if on_computation is not None:
+            from .live_trace import LiveTrace
+            live = LiveTrace(on_computation)
+            live.attach_yolo(front.model)
+            live.attach_behavior(behavior)
         if not cap.isOpened():raise RuntimeError('Cannot open input video')
         width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH));height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps=float(cap.get(cv2.CAP_PROP_FPS))
         if width<1 or height<1 or not np.isfinite(fps) or fps<=0:
             raise RuntimeError('Invalid video dimensions or frame rate')
         meta.update(width=width,height=height,input_fps=fps,input_frames_declared=int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+        if on_event is not None:
+            on_event({'kind': 'metadata', 'width': width, 'height': height, 'fps': fps,
+                      'frame_count': meta['input_frames_declared']})
         output.parent.mkdir(parents=True,exist_ok=True)
         if not a.no_video:
             writer=cv2.VideoWriter(str(output),cv2.VideoWriter_fourcc(*'mp4v'),fps,(width,height))
@@ -149,10 +164,21 @@ def run(a):
         records_file=json_path.open('w',encoding='utf-8')
         processing_start=time.perf_counter()
         while a.max_frames is None or count<a.max_frames:
+            if cancel is not None and cancel.is_set():
+                status = 'cancelled'
+                raise PredictionCancelled('Analysis cancelled')
+            if on_event is not None:
+                on_event({'kind': 'stage', 'stage': 0, 'frame': count})
             frame_start=time.perf_counter();ok,frame=cap.read()
             if not ok:break
+            if live is not None:
+                live.begin_frame(count, count / fps)
+            if on_event is not None:
+                on_event({'kind': 'stage', 'stage': 1, 'frame': count})
             t=time.perf_counter();people=front(frame);frontend_seconds+=time.perf_counter()-t
-            ready=[];eligible=[];current=[]
+            if on_event is not None:
+                on_event({'kind': 'stage', 'stage': 2, 'frame': count})
+            ready=[];eligible=[];eligible_ids=[];current=[]
             for person in people:
                 if pose_filter is not None:person.pose=pose_filter.update(person.track_id,count,person.pose)
                 seen.add(person.track_id);pose_count+=1
@@ -168,16 +194,29 @@ def run(a):
                             if a.normalization=='legacy_pair':
                                 current.append((person,state,accepted));continue
                         if state.prediction is None or count-state.last_prediction>=a.classify_every:
-                            ready.append(state.as_array());eligible.append(state)
+                            ready.append(state.as_array());eligible.append(state);eligible_ids.append(person.track_id)
                 if state is not None and (count-state.last_seen>a.max_gap or not accepted):
                     state.prediction=None
                 current.append((person,state,accepted))
             if ready:
-                t=time.perf_counter();prediction=behavior.predict(np.stack(ready),reference)
+                if live is not None:
+                    live.begin_behavior(eligible_ids, np.stack(ready))
+                t=time.perf_counter()
+                if on_event is None and live is None:
+                    prediction=behavior.predict(np.stack(ready),reference)
+                else:
+                    def observe_behavior(event):
+                        if live is not None:
+                            live.forecast_step(event)
+                        if on_event is not None:
+                            on_event(dict(event, frame=count))
+                    prediction=behavior.predict(np.stack(ready),reference,on_event=observe_behavior)
                 behavior_seconds+=time.perf_counter()-t
                 for i,state in enumerate(eligible):
                     cls=int(prediction['class_ids'][i]);probs=prediction['probabilities'][i]
                     state.prediction={'class_id':cls,'probabilities':probs.tolist(),'class_probability':float(probs[cls])}
+                    if on_event is not None:
+                        state.prediction['future'] = prediction['future_poses'][i].copy()
                     state.last_prediction=count;updates+=1
             records=[]
             for person,state,accepted in current:
@@ -192,6 +231,8 @@ def run(a):
                      '_pose':person.pose}
                 if pred:annotations+=1
                 records.append(row)
+            if on_event is not None and not ready:
+                on_event({'kind': 'stage', 'stage': 3, 'frame': count})
             if writer is not None:writer.write(draw_people(frame,records,a.task,a.joint_conf,a.presentation))
             serial=[]
             for row in records:
@@ -199,6 +240,26 @@ def run(a):
                 if a.save_keypoints:row['keypoints']=pose.tolist()
                 serial.append(row)
             records_file.write(json.dumps({'frame':count,'time_seconds':count/fps,'tracks':serial},allow_nan=False)+'\n')
+            if on_event is not None:
+                trace = []
+                for person, state, accepted in current[:3]:
+                    if state is None:
+                        continue
+                    row = next(r for r in serial if r['track_id'] == person.track_id)
+                    future = state.prediction.get('future') if state.prediction else None
+                    trace.append(dict(row, history=state.as_array(), future=future))
+                on_event({'kind': 'frame', 'frame': count, 'time_seconds': count / fps,
+                          'image': frame, 'tracks': serial, 'trace': trace})
+            if live is not None:
+                live_tracks = []
+                selected_ids = eligible_ids[:3] if eligible_ids else [person.track_id for person, _, _ in current[:3]]
+                selected = {person.track_id: (person, state, accepted) for person, state, accepted in current}
+                for track_id in selected_ids:
+                    person, state, accepted = selected[track_id]
+                    row = next(r for r in serial if r['track_id'] == person.track_id)
+                    live_tracks.append(dict(row, keypoints=person.pose.tolist(),
+                                            prediction_frame=state.last_prediction if state is not None else -1))
+                live.end_frame(live_tracks)
             store.expire(count);count+=1;frame_times.append(time.perf_counter()-frame_start)
             if count%30==0:
                 records_file.flush();print('Processed',count,'frames; intent annotations',annotations,flush=True)
@@ -207,6 +268,8 @@ def run(a):
             raise RuntimeError('Unexpected TensorFlow import in modern pipeline')
         status='complete'
     finally:
+        if live is not None:
+            live.close()
         cap.release()
         if writer is not None:writer.release()
         if records_file is not None:records_file.close()

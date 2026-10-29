@@ -1,5 +1,7 @@
 # 基于人体骨架时序建模的行人过街意图预测
 
+本项目用于**深度学习课程大作业**，包含模型推理、视频可视化和可操作的本地网页演示。
+
 课堂提交版本：**v1.0.0**。系统从车载视频提取行人骨架，使用LSTM预测骨架序列，再由ST-GCN输出类别，并显示行人框、骨架、跟踪ID和预测结果。
 
 ```text
@@ -48,9 +50,23 @@ python -s run_demo.py --input "path/to/video.mp4" --output "output/demo.mp4"
 
 输出包含MP4、逐帧JSONL和运行指标。`Collecting motion`表示积累历史；`score`是类别概率分数，不是实测准确率；`Other`对应JAAD的irrelevant类别。请使用尚未存在的输出路径。
 
+## 摄像头现场试跑
+
+独立的试验入口支持固定摄像头、鼠标划定模拟道路、骨架与轨迹外推。使用已有环境和本地 YOLO26 Pose 权重运行：
+
+```powershell
+python -s run_camera_demo.py --camera 0 --backend dshow
+```
+
+沿道路四角依次点击，按 Enter 开始；R 重划、C 清空历史、Q 退出。加 `--behavior` 可单独显示原 LSTM → ST-GCN 的输出，需另外准备行为权重。轨迹外推和模型结果分别标注；该入口使用时间重采样，不属于已验证的离线评估流程。环境、日志、参数和限制见 [摄像头演示说明](docs/CAMERA_DEMO.md)。
+
 ## 文件说明
 
+本地网页演示支持选择视频、开始分析、骨架与行人 ID、预测类别、结果保存，以及实际推理驱动的三维计算展示、输入→权重→乘积→累加→输出的逐项演算、参与关系筛选和详细数值回放。按 [网页演示说明](docs/WEB_DEMO.md) 完成一次前端构建后，运行 `python run_web_demo.py`，打开 `http://127.0.0.1:8765`。
+
 - `run_demo.py` / `run_demo.ps1`：最终视频展示入口，默认载入固定模型包。
+- `run_web_demo.py` / `web_demo/`：本地网页工作台、实时三维计算与数值回放。
+- `run_camera_demo.py`：模拟道路摄像头演示，独立于默认离线流程。
 - `modern_pipeline/`：检测、跟踪、时序缓存、行为预测和可视化。
 - `st_gcn.py`：保留的原ST-GCN及LSTM结构。
 - `docs/final/`：固定模型配置、文件校验值与指标。
@@ -58,5 +74,7 @@ python -s run_demo.py --input "path/to/video.mp4" --output "output/demo.mp4"
 - [实验归档](docs/experiments/README.md)：历史实验记录，归档分数不代表当前最终组合。
 
 验证命令：`python -s -m unittest discover -s modern_pipeline/tests -p 'test_*.py' -v`。
+
+摄像头试验入口另有 25 项测试；与原有 26 项回归测试一起运行。缺少复现权重时，5 项真实权重行为测试自动跳过，须在验证结果中明确报告。
 
 项目依据原论文《基于车载视频的行人意图预测方法的设计与实现》及恢复代码。第三方代码和模型的来源、许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，模型包另附来源说明。
