@@ -1,0 +1,26 @@
+{
+  "train": {
+    "videos": 176,
+    "samples": 1648,
+    "classes": [
+      241,
+      91,
+      1316
+    ],
+    "lstm_samples": 1835,
+    "eligible": 4838,
+    "unique_people": 191
+  },
+  "val": {
+    "videos": 44,
+    "samples": 368,
+    "classes": [
+      26,
+      16,
+      326
+    ],
+    "lstm_samples": 396,
+    "eligible": 953,
+    "unique_people": 45
+  }
+}

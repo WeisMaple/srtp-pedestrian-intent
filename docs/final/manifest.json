@@ -1,26 +1,30 @@
 {
   "lstm.pt": {
     "bytes": 20743359,
-    "sha256": "6bd9e24d68b4d8071970e64756fe0666c6d22f77dcaddc34abdd21a1b8493817"
+    "sha256": "8907d18ba855d57badd73e8eed600b812287dd09e9889e40c52547030da0f521"
   },
   "model_config.json": {
-    "bytes": 527,
-    "sha256": "b308e9ca8b2cd8cd6ebc78eeaff8d056760864624cf5aa4c515e211c3f47414d"
+    "bytes": 728,
+    "sha256": "76a90a00bccc595f8125cbc6521f8dcda0669128728fe19fd1e39f2b490d0962"
   },
   "MODEL_SOURCES.txt": {
-    "bytes": 493,
-    "sha256": "b0a456455e0aa59835796fec305f15237d38026dd55296c7b9f54786e357d24d"
+    "bytes": 642,
+    "sha256": "fb9cb9b10ce61cbd8ab12d8b0b0c8189a22cdf5ee810e4861bdcb186d74c076f"
   },
   "normalization.pt": {
-    "bytes": 22784,
-    "sha256": "3df163eb80892be86091a2853188b90a12ac5ebccedbc687034ccc62c12d0595"
+    "bytes": 22848,
+    "sha256": "0300b8c46204e4fe4086b3e53ae61474f960039ce4d0cb95326620379a561696"
   },
   "stgcn.pt": {
-    "bytes": 12386970,
-    "sha256": "956b4f50912fe0f716eba54cc7f0e19f939fb49980879aaf40d99c50227d918a"
+    "bytes": 12376522,
+    "sha256": "0de11d060d53dd704f799e75f6964fd11bafdd7d0065b01c040bef4d50e366af"
   },
   "yolo26s-pose.pt": {
     "bytes": 24151790,
     "sha256": "a083adb42303728ae14c4bd6bd56d80da46f82fb2564dbd6f31dcc92ea321646"
+  },
+  "manifest.json": {
+    "bytes": 798,
+    "sha256": "6d3211dcd4c0557b1006220efc77ed6783ceb751ac8a22ba062c8a04fc4f5093"
   }
 }

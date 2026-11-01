@@ -1,0 +1,9 @@
+{
+  "samples": 1523,
+  "horizon": 10,
+  "normalized_mse": 0.383853002022695,
+  "persistence_mse": 0.1522405320290508,
+  "xy_mse": 0.1405742229381362,
+  "persistence_xy_mse": 0.017144260230918737,
+  "target": "future YOLO keypoints; all test tracks"
+}

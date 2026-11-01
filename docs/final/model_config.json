@@ -1,14 +1,18 @@
 {
   "name": "SRTP classroom final",
-  "version": "1.0.0",
-  "normalization": "legacy_pair",
+  "version": "2.0.0",
+  "normalization": "training_stats",
   "pose_filter": false,
   "stgcn": "stgcn.pt",
   "lstm": "lstm.pt",
   "stats": "normalization.pt",
   "pose_model": "yolo26s-pose.pt",
-  "classifier_epoch": 121,
-  "classifier_metric_scope": "ST-GCN original-window internal validation only",
-  "classifier_accuracy": 0.98,
-  "video_metric_scope": "This assembled pipeline requires separate evaluation; internal classification accuracy does not measure the video pipeline"
+  "classifier_epoch": 28,
+  "classifier_metric_scope": "video-disjoint validation, predicted skeletons",
+  "classifier_accuracy": 0.8885869565217391,
+  "video_metric_scope": "126 test videos, 1506 effective samples of 4189 eligible points; test split used during project development",
+  "lstm_representation": "last_observation_relative",
+  "test_accuracy": 0.8240371845949536,
+  "test_macro_f1": 0.5367562833016426,
+  "loss": "sqrt inverse class frequency weighted cross entropy"
 }

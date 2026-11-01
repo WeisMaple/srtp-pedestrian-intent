@@ -173,7 +173,9 @@ export function createNeuralScene(host, handlers={}) {
             const x=-7+i*4;
             skeleton('future',25,[x,1,-1.5+i*.8],{scale:5,color:i===1?COLORS.mint:COLORS.cyan});
             label(['自身','自身 + 向心','离心邻居'][i],[x,-2.4,-1.5+i*.8],{size:.32});
-            route([[x,1,-1+i*.8],[3.4,3,1],[5.2,1,1]],{node:'stgcn.0.spatial'});
+            // GraphMessages binds each aggregation edge to its actual source
+            // joint and output cell. A fixed route here would float beside the
+            // pose and falsely look like an additional graph connection.
         }
         for(let i=0;i<10;i++){
             const key=`stgcn.${i}.spatial`;

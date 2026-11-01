@@ -1,0 +1,44 @@
+{
+  "seed": 2026,
+  "epochs": 125,
+  "batch_size": 128,
+  "optimizer": "SGD",
+  "lr": 0.001,
+  "momentum": 0,
+  "weight_decay": 0,
+  "class_counts": [
+    241.0,
+    91.0,
+    1316.0
+  ],
+  "weights": {
+    "inverse": [
+      2.2793915271759033,
+      6.036630153656006,
+      0.41742655634880066
+    ],
+    "sqrt_inverse": [
+      1.7306249141693115,
+      2.8163766860961914,
+      0.7405996918678284
+    ],
+    "effective_0999": [
+      1.9382684230804443,
+      4.772029876708984,
+      0.5673424005508423
+    ]
+  },
+  "effective_beta": 0.999,
+  "unchanged": "LSTM, network architecture, input features, video split, initialization, batch order, training schedule, normalization",
+  "checkpoint_selection": "maximum validation MacroF1, tie minimum unweighted validation CE",
+  "method_selection": "same criterion across all three selected checkpoints, frozen before test evaluation",
+  "baseline": "reuse completed inverse-weight trial from previous round",
+  "test_policy": "evaluate all three once after method selection; previously used test videos; no test-driven retraining",
+  "frozen_sha256": {
+    "D:\\SRTP_relative_pipeline_20261101\\lstm\\best.pt": "8907d18ba855d57badd73e8eed600b812287dd09e9889e40c52547030da0f521",
+    "D:\\SRTP_relative_pipeline_20261101\\features.pt": "f9a0be58fbe84e113f4a401deca0937cd3a2b6211aa052bf640da932f97b78f9",
+    "D:\\SRTP_relative_pipeline_20261101\\forecast\\normalization.pt": "cc27d386452c0ffc7909ed3b5057cac4c0ef266bdd912ca883244e1670dbb63f",
+    "D:\\SRTP_lstm_retrain_20261101\\train_val.pt": "97fbad5eff5273434b25a2e506b63853070a055852f5bc0dc07585a32b237930",
+    "F:\\Artificial_Intelligence\\srtp\\st_gcn.py": "a08b2a96ac97178557d3388c9c3752b62144a1f398259fa98b74a88a9da8ec12"
+  }
+}

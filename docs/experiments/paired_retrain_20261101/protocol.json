@@ -1,0 +1,36 @@
+{
+  "seed": 2026,
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "torch": "2.2.2+cu121",
+  "architecture_sha256": "a08b2a96ac97178557d3388c9c3752b62144a1f398259fa98b74a88a9da8ec12",
+  "structure": "unchanged YOLO26s-Pose/ByteTrack, LSTM(10 layers,256 hidden,10-step output,5 recursive rounds), original 10-block ST-GCN",
+  "raw_cache": "D:\\SRTP_independent_20261028\\modern_raw",
+  "pose_filter": false,
+  "min_valid_joints": 5,
+  "keypoint_conf": 0.2,
+  "max_frame_gap": 2,
+  "split": "fixed earlier class-aware regrouping of original train/val only; official test unchanged",
+  "class_matching": "same-frame Hungarian IoU>=0.5 for labels only; detector-ID history is never repaired by GT",
+  "lstm_supervision": "all valid causal detector tracks in fit videos, history50,target10,stride10; no GT identity repair",
+  "lstm": {
+    "epochs": 100,
+    "lr": 0.001,
+    "optimizer": "Adam",
+    "weight_decay": 0,
+    "batch_size": 128,
+    "selection": "validation MSE"
+  },
+  "stgcn": {
+    "epochs": 125,
+    "lr": 0.001,
+    "optimizer": "SGD",
+    "momentum": 0,
+    "weight_decay": 0,
+    "batch_size": 128,
+    "loss": "inverse training class-frequency weighted cross-entropy",
+    "selection": "validation Macro-F1; tie unweighted validation CE"
+  },
+  "forecast_training": "3-fold out-of-video LSTM forecasts; fold duration selected by main LSTM validation; no test used",
+  "normalization": "train-only fixed mean/std pooled over examples/time per joint/channel; branch-specific classifier stats; shared runtime forecast function",
+  "test_policy": "evaluate once after both branches selected; test previously used in project, not unseen blind benchmark"
+}

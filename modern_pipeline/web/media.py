@@ -1,5 +1,4 @@
 """Video validation and browser-compatible exports, without shell interpolation."""
-import hashlib
 import json
 import math
 from pathlib import Path
@@ -10,19 +9,8 @@ import time
 
 import cv2
 
-from modern_pipeline.bootstrap import PROJECT_ROOT
 from modern_pipeline.cli import PredictionCancelled
-
-
-def validate_bundle(folder):
-    manifest = json.loads((PROJECT_ROOT / 'docs/final/manifest.json').read_text())
-    for name, record in manifest.items():
-        path = folder / name
-        if not path.is_file():
-            raise ValueError('缺少模型文件，请先运行 python download_final_models.py：' + name)
-        if path.stat().st_size != record['bytes'] or hashlib.sha256(path.read_bytes()).hexdigest() != record['sha256']:
-            raise ValueError('模型校验不一致：' + name)
-    return json.loads((folder / 'model_config.json').read_text(encoding='utf-8'))
+from modern_pipeline.model_bundle import validate_bundle
 
 
 def probe_video(path):

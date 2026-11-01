@@ -10,8 +10,25 @@ import torch
 from st_gcn import Model, SkeletonLSTM
 
 @torch.inference_mode()
-def forecast_with_statistics(lstm, poses, mean, std, on_event=None):
+def forecast_with_statistics(lstm, poses, mean, std, on_event=None, representation='absolute'):
     """Shared training-feature/runtime forecast, using saved training statistics."""
+    if representation == 'last_observation_relative':
+        series = poses
+        for step in range(5):
+            anchor = series[:, -1:]
+            relative = (series - anchor) / std
+            with torch.backends.cudnn.flags(benchmark=False, deterministic=True, allow_tf32=False):
+                delta = lstm(relative.reshape(len(poses), 50, 51))
+            forecast = delta * std + anchor
+            series = torch.cat((series[:, 10:], forecast), dim=1)
+            if on_event is not None:
+                on_event({'kind': 'forecast_step', 'stage': 4, 'step': step + 1,
+                          'poses': forecast.cpu().numpy().copy(),
+                          'anchor': anchor.cpu().numpy().copy(),
+                          'representation': representation})
+        return series
+    if representation != 'absolute':
+        raise ValueError('Unknown LSTM representation: ' + str(representation))
     series=(poses-mean)/std
     for step in range(5):
         with torch.backends.cudnn.flags(benchmark=False,deterministic=True,allow_tf32=False):
@@ -55,6 +72,7 @@ class BehaviorPredictor:
             self.lstm.load_state_dict(self._load_weights(lstm_path))
             self.lstm.to(self.device).eval()
         self.stats = {}
+        self.forecast_representation = 'absolute'
         if normalization == 'training_stats':
             if stats_path is None:
                 raise ValueError('training_stats normalization requires stats_path')
@@ -64,6 +82,9 @@ class BehaviorPredictor:
             loaded = torch.load(stats_file, map_location='cpu', weights_only=True)
             if not isinstance(loaded, dict):
                 raise ValueError('Statistics file must contain a dictionary')
+            self.forecast_representation = loaded.get('lstm_representation', 'absolute')
+            if self.forecast_representation not in {'absolute', 'last_observation_relative'}:
+                raise ValueError('Unsupported LSTM representation in statistics file')
             shapes = {'stgcn_mean': (1, 3, 50, 17, 1),
                       'stgcn_std': (1, 3, 50, 17, 1),
                       'lstm_mean': (17, 3), 'lstm_std': (17, 3)}
@@ -140,7 +161,8 @@ class BehaviorPredictor:
                 std = poses.std(dim=1, correction=0, keepdim=True) + self.EPSILON
             if on_event is not None:
                 on_event({'kind': 'stage', 'stage': 4})
-            poses = forecast_with_statistics(self.lstm,poses,mean,std,on_event=on_event)
+            poses = forecast_with_statistics(self.lstm,poses,mean,std,on_event=on_event,
+                                             representation=getattr(self, 'forecast_representation', 'absolute'))
         if not torch.isfinite(poses).all():
             raise RuntimeError('Behavior forecast contains non-finite values')
         if self.normalization == 'training_stats':

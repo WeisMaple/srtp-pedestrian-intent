@@ -231,6 +231,9 @@ def inspect_model(predictor, history, reference=None):
     def observe(event):
         if event['kind'] == 'forecast_step':
             rounds[-1]['forecast_poses'] = event['poses'][0].tolist()
+            if 'anchor' in event:
+                rounds[-1]['anchor_pose'] = event['anchor'][0, 0].tolist()
+                rounds[-1]['representation'] = event['representation']
 
     def classifier_input(module, inputs):
         tensor = inputs[0]
@@ -269,6 +272,9 @@ def inspect_model(predictor, history, reference=None):
             if predictor.normalization == 'training_stats':
                 mean, std = predictor.stats['lstm_mean'], predictor.stats['lstm_std']
                 formula = '(pose - saved_training_mean) / saved_training_std'
+                if getattr(predictor, 'forecast_representation', 'absolute') == 'last_observation_relative':
+                    mean = poses[:, -1:]
+                    formula = '(pose - last_observation_anchor) / saved_training_std; re-anchor each round'
             else:
                 mean = poses.mean(dim=1, keepdim=True)
                 std = poses.std(dim=1, correction=0, keepdim=True) + predictor.EPSILON

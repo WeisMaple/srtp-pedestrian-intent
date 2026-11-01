@@ -1,0 +1,39 @@
+{
+  "backend_tests": {
+    "passed": 110,
+    "skipped": 0
+  },
+  "frontend_tests": {
+    "passed": 68,
+    "skipped": 0
+  },
+  "frontend_build": "pass",
+  "actual_web_upload_inference_playback": "pass",
+  "browser_errors": 0,
+  "runtime_parity": {
+    "samples": 8,
+    "representation": "last_observation_relative",
+    "max_probability_error": 0.0,
+    "max_future_coordinate_error": 0.0,
+    "same_classes": true
+  },
+  "camera": {
+    "final_bundle_configured": true,
+    "regression_tests": "pass",
+    "physical_camera_tested": false
+  },
+  "report": {
+    "pages": 23,
+    "rendered_with": "Microsoft Word",
+    "all_pages_visually_reviewed": true
+  },
+  "presentation": {
+    "slides": 18,
+    "native_charts": 4,
+    "embedded_videos": 2,
+    "template_parts_unchanged": 26,
+    "rendered_with": "Microsoft PowerPoint",
+    "all_slides_visually_reviewed": true,
+    "package_and_chart_validation": "pass"
+  }
+}

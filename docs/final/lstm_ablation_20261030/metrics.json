@@ -1,0 +1,64 @@
+{
+  "protocol": "Paired frozen-bundle LSTM removal; identical histories, reference poses and normalization rule; no retraining",
+  "scope": "Overlapping-source diagnostic. Classifier training included windows from the video pool.",
+  "n": 1498,
+  "eligible": 4189,
+  "coverage": 0.35760324659823345,
+  "device": "cuda:0",
+  "normalization": "legacy_pair",
+  "weights_sha256": {
+    "stgcn.pt": "956b4f50912fe0f716eba54cc7f0e19f939fb49980879aaf40d99c50227d918a",
+    "lstm.pt": "6bd9e24d68b4d8071970e64756fe0666c6d22f77dcaddc34abdd21a1b8493817"
+  },
+  "branches": {
+    "observed": {
+      "n": 1498,
+      "accuracy": 0.7977303070761015,
+      "macro_f1": 0.31411862990810363,
+      "crossing_recall": 0.9682151589242054,
+      "confusion_matrix": [
+        [
+          7,
+          2,
+          219
+        ],
+        [
+          17,
+          0,
+          26
+        ],
+        [
+          33,
+          6,
+          1188
+        ]
+      ],
+      "batch_evaluation_seconds": 1.8442915000000006
+    },
+    "forecast": {
+      "n": 1498,
+      "accuracy": 0.7837116154873164,
+      "macro_f1": 0.31561685497875247,
+      "crossing_recall": 0.9486552567237164,
+      "confusion_matrix": [
+        [
+          10,
+          0,
+          218
+        ],
+        [
+          16,
+          0,
+          27
+        ],
+        [
+          60,
+          3,
+          1164
+        ]
+      ],
+      "batch_evaluation_seconds": 15.267973600000001
+    }
+  },
+  "forecast_matches_previous_by_key": true
+}

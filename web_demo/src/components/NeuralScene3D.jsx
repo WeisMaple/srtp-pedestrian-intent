@@ -3,6 +3,7 @@ import { normalizeLiveNodes } from '../liveComputation.js';
 import { createNeuralScene } from '../three/NeuralScene.js';
 import { sceneNodes, STAGE_NAMES, finite } from '../three/sceneData.js';
 import GraphStoryControls from './GraphStoryControls.jsx';
+import SpatioTemporalExplorer from './SpatioTemporalExplorer.jsx';
 import '../three-scene.css';
 
 /** Live mode supplies only liveNodes; saved tensors are used for inspection mode. */
@@ -10,6 +11,10 @@ export default function NeuralScene3D({ stage=0, data, frontend, track, liveNode
     const host=useRef(null),engine=useRef(null),callbacks=useRef({onStageSelect,onInspect,onError,onTermSelect,onGraphTarget});
     const [autoFollow,setAutoFollow]=useState(true);
     const [graphEmphasis,setGraphEmphasis]=useState(true);
+    const [uiHidden,setUiHidden]=useState(false);
+    const [explorerMode,setExplorerMode]=useState('guided');
+    const supportsGuided=[2,4,5,6].includes(stage);
+    const guided=supportsGuided&&explorerMode==='guided';
     const [error,setError]=useState(null),[revision,setRevision]=useState(0),[selected,setSelected]=useState(null),[round,setRound]=useState(0);
     callbacks.current={onStageSelect,onInspect,onError,onTermSelect,onGraphTarget};
     const effectiveRound=calculation?Math.max(0,(calculation.metadata?.round??1)-1):round;
@@ -17,6 +22,7 @@ export default function NeuralScene3D({ stage=0, data, frontend, track, liveNode
     const latest=useRef({nodes,liveEvent,running,frozen,progress,stage,calculation,calculationState});latest.current={nodes,liveEvent,running,frozen,progress,stage,calculation,calculationState};
     useEffect(()=>{
         setError(null);
+        if(guided){callbacks.current.onError?.(null);return;}
         try {
             engine.current=createNeuralScene(host.current,{
                 onAutoFollow:setAutoFollow,
@@ -33,17 +39,19 @@ export default function NeuralScene3D({ stage=0, data, frontend, track, liveNode
             setError(message);callbacks.current.onError?.(message);
         }
         return ()=>{engine.current?.dispose();engine.current=null;};
-    },[revision]);
+    },[revision,guided]);
+    useEffect(()=>setExplorerMode('guided'),[stage]);
     useEffect(()=>{engine.current?.setStage(stage);setSelected(null);},[stage]);
     useEffect(()=>{setSelected(null);engine.current?.clearSelection();},[liveEvent?.seq,liveEvent?.frame,liveEvent?.job_id,track?.track_id,data,frontend,round]);
     useEffect(()=>{engine.current?.update(nodes,{liveEvent,playing:running,isFrozen:frozen,phase:progress});},[nodes,liveEvent]);
     useEffect(()=>{engine.current?.setPlayback({playing:running,isFrozen:frozen,phase:progress});},[running,frozen,progress]);
     useEffect(()=>{engine.current?.setCalculation(calculation,calculationState);},[calculation,calculationState]);
-    useEffect(()=>{engine.current?.setGraphEmphasis(graphEmphasis);},[graphEmphasis,revision]);
+    useEffect(()=>{engine.current?.setGraphEmphasis(graphEmphasis);},[graphEmphasis,revision,guided]);
     const count=Object.keys(nodes).length;
     const graph=calculation?.stage==='spatial';
     const format=value=>finite(value)?Number(value.toPrecision(7)).toString():Array.isArray(value)?value.map(v=>finite(v)?Number(v.toPrecision(6)):String(v)).join(' / '):'尚无此单元数值';
-    return <div className={`neural-scene ${calculation?'has-spatial-trace':''} ${calculation?.stage==='spatial'?'has-graph-story':''}`} data-calculation={calculation?.id||''} data-cursor={calculationState?.cursor??0} data-stage={stage} data-mode={liveEvent?'live':count?'record':'structure'}>
+    if(guided)return <SpatioTemporalExplorer stage={stage} nodes={nodes} calculation={calculation} state={calculationState} onGraphTarget={onGraphTarget} onTermSelect={onTermSelect} onCursorChange={onCursorChange} playing={calculationPlaying} onToggle={onToggleCalculation} onShow3D={()=>setExplorerMode('3d')}/>;
+    return <div className={`neural-scene ${calculation?'has-spatial-trace':''} ${calculation?.stage==='spatial'?'has-graph-story':''} ${uiHidden?'scene-ui-hidden':''}`} data-calculation={calculation?.id||''} data-cursor={calculationState?.cursor??0} data-stage={stage} data-mode={liveEvent?'live':count?'record':'structure'}>
         <div className="neural-scene-toolbar">
             <div className="neural-scene-title"><span className="neural-dimension-mark">3D</span><div><strong>{stage===0&&calculation?`全流程 · 当前${STAGE_NAMES[calculation.chapter]}`:STAGE_NAMES[stage]}</strong><span>{calculation?`${calculation.title} · 帧 ${Number(calculation.frame)+1} · ${calculation.track_id==null?'整帧图像':`行人 ${calculation.track_id}`} · 代表输出的逐项演算`:liveEvent ? `实时事件 #${liveEvent.seq} · ${liveEvent.node}` : count ? '实际张量 / 空间检查' : '网络结构 / 等待计算'}</span></div></div>
             <div className="neural-camera-tools">
@@ -51,9 +59,11 @@ export default function NeuralScene3D({ stage=0, data, frontend, track, liveNode
                 {calculation&&<button className="neural-auto-follow" aria-pressed={autoFollow} onClick={()=>engine.current?.setAutoFollow(!autoFollow)}>{autoFollow?'自动跟随当前步骤':'恢复自动跟随'}</button>}
                 <button onClick={()=>engine.current?.focusSelected()} disabled={!selected} title="将选中的单元移至镜头中央">聚焦单元</button>
                 <button onClick={()=>engine.current?.resetCamera()} title="恢复当前章节的三维相机">重置视角</button>
+                <button className="neural-ui-toggle" aria-pressed={uiHidden} title={uiHidden?'恢复数值卡片、标注与工具栏':'收起数值卡片、标注与工具栏，继续查看三维过程'} onClick={()=>setUiHidden(value=>!value)}>{uiHidden?'显示 UI':'隐藏 UI'}</button>
             </div>
         </div>
         <div className="neural-scene-viewport" ref={host}/>
+        {supportsGuided&&<button className="sx-guided-return" onClick={()=>setExplorerMode('guided')}>← 骨架与聚合讲解</button>}
         {!error&&calculation?.stage==='spatial'&&<GraphStoryControls calculation={calculation} state={calculationState} onTarget={onGraphTarget} onSeek={onCursorChange} emphasis={graphEmphasis} onEmphasis={setGraphEmphasis} playing={calculationPlaying} onToggle={onToggleCalculation}/>}
         {error&&<div className="neural-scene-fallback" role="alert"><span>三维画布暂不可用</span><p>{error}</p><button onClick={()=>setRevision(v=>v+1)}>恢复三维画布</button></div>}
         {!error&&<div className="neural-scene-hint"><span>拖动旋转</span><i/><span>滚轮缩放</span><i/><span>右键平移</span><i/><span>点选真实单元</span></div>}

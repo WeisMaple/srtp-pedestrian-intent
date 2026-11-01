@@ -140,7 +140,8 @@ def run(a, on_event=None, cancel=None, on_computation=None):
           'joint_conf':a.joint_conf,'save_keypoints':a.save_keypoints,
           'label_map':{str(i):v for i,v in enumerate(LABELS)},
           'forecast_observations':50 if lstm else 0,
-          'note':'New frontend changes skeleton distribution; previous validation scores do not apply.'}
+          'forecast_representation':getattr(behavior,'forecast_representation','absolute'),
+          'note':'Forecast horizon counts valid observations; classes describe pedestrian crossing attributes.'}
     live = None
     try:
         if on_computation is not None:

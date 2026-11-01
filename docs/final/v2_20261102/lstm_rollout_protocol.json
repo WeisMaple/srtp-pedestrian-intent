@@ -1,0 +1,12 @@
+{
+  "epochs": 30,
+  "lr": 0.0001,
+  "batch_size": 64,
+  "clip": 1,
+  "train_samples": 1074,
+  "val_samples": 209,
+  "initialization": "anchored_reliable best epoch13",
+  "selection": "full50 validation all-joint XY MSE, including epoch0",
+  "loss": "valid-target XY MSE + 0.1 confidence MSE over all50 future observations; backprop through all five recursive calls",
+  "test_used": false
+}

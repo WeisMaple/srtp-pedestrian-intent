@@ -1,0 +1,21 @@
+{
+  "seed": 2026,
+  "architecture_sha256": "a08b2a96ac97178557d3388c9c3752b62144a1f398259fa98b74a88a9da8ec12",
+  "test_policy": "evaluate only after validation-selected classifier; previously used project test split",
+  "lstm": "reuse validation-selected relative LSTM: 13 short epochs + checkpoint13 of recursive fine tuning",
+  "folds": "same 3 video folds as previous paired study; fold-specific training-only std; fixed 13+13 epochs",
+  "training": {
+    "short_epochs": 13,
+    "short_lr": 0.001,
+    "short_batch": 128,
+    "rollout_epochs": 13,
+    "rollout_lr": 0.0001,
+    "rollout_batch": 64,
+    "clip": 1,
+    "loss": "valid-target XY MSE + 0.1 confidence MSE",
+    "weight_decay": 0
+  },
+  "classifier": "unchanged ST-GCN, same init seed2026, SGD lr.001 batch128 epochs125, inverse frequency weighted CE, best validation MacroF1",
+  "observed_control": "reuse previous observed checkpoint; unchanged data, initialization and training configuration",
+  "default_weights_changed": false
+}

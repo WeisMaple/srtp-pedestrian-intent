@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-29",
+  "base_commit": "968144afd50af2e50640c95ef18a6703fb2a4135",
+  "scope": "Camera final-bundle defaults and web device reporting fixes; no training or accuracy evaluation",
+  "python_tests": {"total": 107, "passed": 107},
+  "camera_defaults": {
+    "model_dir": "weights/final",
+    "model_version": "1.0.0",
+    "normalization": "legacy_pair",
+    "manifest_verified": true,
+    "stgcn_sha256": "956b4f50912fe0f716eba54cc7f0e19f939fb49980879aaf40d99c50227d918a",
+    "lstm_sha256": "6bd9e24d68b4d8071970e64756fe0666c6d22f77dcaddc34abdd21a1b8493817"
+  },
+  "web_check": {
+    "source": "150-frame reencoded road clip from JAAD video_0001",
+    "frames": 150,
+    "classification_updates": 88,
+    "health_frontend_device": "cuda:0",
+    "metrics_device": "cuda:0",
+    "health_behavior_device": "cpu",
+    "metrics_behavior_device": "cpu",
+    "upload_inference_export_passed": true,
+    "network_inspection_passed": true,
+    "frontend_inspection_passed": true
+  },
+  "camera_check": {
+    "scope": "Road video replay replaces capture only, paced to at most 30 FPS; real YOLO, ByteTrack, LSTM and ST-GCN",
+    "frames": 150,
+    "behavior_prediction_calls": 16,
+    "model_overrides": [],
+    "device": "cuda:0",
+    "status": "complete",
+    "cleanup_errors": [],
+    "physical_camera_tested": false
+  }
+}

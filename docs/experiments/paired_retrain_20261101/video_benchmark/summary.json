@@ -1,0 +1,37 @@
+{
+  "input": "video_0001.mp4",
+  "frames": 150,
+  "pose_device": "GPU",
+  "behavior_device": "CPU",
+  "same_detector_and_tracker": true,
+  "results": {
+    "observed": {
+      "encoded_run_fps": 15.970223496996221,
+      "repeated_no_video_fps": [
+        41.24747544826515,
+        42.83726636554925
+      ],
+      "median_no_video_fps": 42.042370906907195,
+      "prediction_calls": [
+        120,
+        120,
+        120
+      ]
+    },
+    "forecast": {
+      "encoded_run_fps": 12.798237761156145,
+      "repeated_no_video_fps": [
+        19.28498377052906,
+        17.794405714063643
+      ],
+      "median_no_video_fps": 18.53969474229635,
+      "prediction_calls": [
+        120,
+        120,
+        120
+      ]
+    }
+  },
+  "reported_timing": "repeats 1 and 2, after warmup, no video encoding; no concurrent experiment jobs",
+  "encoded_run_timing_excluded": true
+}

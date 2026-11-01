@@ -1,0 +1,26 @@
+{
+  "learning_rates": [
+    0.0005,
+    0.001,
+    0.002
+  ],
+  "seed": 2026,
+  "epochs": 125,
+  "batch_size": 128,
+  "optimizer": "SGD",
+  "momentum": 0.0,
+  "weight_decay": 0.0,
+  "loss": "CrossEntropyLoss",
+  "selection": "highest validation accuracy; earliest tie",
+  "train_samples": 796,
+  "validation_samples": 200,
+  "scope": "internal overlapping-window validation; normalization fitted before split",
+  "dataset": "D:\\SRTP_modern_internal_20261028\\datasets\\stgcn.pt",
+  "dataset_sha256": "2a58022b17c26c7f2705ea4fe4f4be0d39aee4e26df28219bc2adb5ea49da4d6",
+  "model_source_sha256": "a08b2a96ac97178557d3388c9c3752b62144a1f398259fa98b74a88a9da8ec12",
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "torch": "2.2.2+cu121",
+  "cudnn_allow_tf32": true,
+  "identical_initialization": true,
+  "identical_minibatch_order": true
+}

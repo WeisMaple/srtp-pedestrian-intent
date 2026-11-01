@@ -5,10 +5,12 @@ from copy import deepcopy
 from datetime import datetime, timezone
 import json
 import math
+import os
 from pathlib import Path
 import time
 
-from .bootstrap import ARTIFACT_ROOT, configure
+from .bootstrap import PROJECT_ROOT, configure
+from .model_bundle import validate_bundle
 
 
 class DemoStopped(Exception):
@@ -22,7 +24,10 @@ def arguments(argv=None):
     p.add_argument('--width', type=int, default=1280)
     p.add_argument('--height', type=int, default=720)
     p.add_argument('--capture-fps', type=float, default=30, help='Requested rate; timestamps use actual delivery')
-    p.add_argument('--pose-model', type=Path, default=ARTIFACT_ROOT / 'weights/yolo26s-pose.pt')
+    p.add_argument('--model-dir', type=Path,
+                   default=Path(os.environ.get('SRTP_DEMO_MODEL_DIR', str(PROJECT_ROOT / 'weights/final'))),
+                   help='Final release bundle containing model_config.json')
+    p.add_argument('--pose-model', type=Path, help='Explicit pose weight override')
     p.add_argument('--device', default='auto', help='auto, cpu, cuda:0, or 0')
     p.add_argument('--imgsz', type=int, default=640)
     p.add_argument('--conf', type=float, default=0.1)
@@ -31,11 +36,11 @@ def arguments(argv=None):
     p.add_argument('--road', nargs=4, metavar='X,Y', help='Four ordered corners in normalized image coordinates')
     p.add_argument('--horizon', type=float, default=1.0, help='Trajectory extrapolation horizon in seconds')
     p.add_argument('--max-gap', type=float, default=0.2, help='Maximum observation gap in seconds')
-    p.add_argument('--behavior', action='store_true', help='Also run the original LSTM then ST-GCN comparison')
-    p.add_argument('--stgcn', type=Path, default=ARTIFACT_ROOT / 'weights/stgcn_reproduced.pt')
-    p.add_argument('--lstm', type=Path, default=ARTIFACT_ROOT / 'weights/lstm_reproduced_wd0.pt')
-    p.add_argument('--normalization', choices=['legacy_pair', 'training_stats'], default='legacy_pair')
-    p.add_argument('--stats', type=Path, default=ARTIFACT_ROOT / 'weights/normalization.pt')
+    p.add_argument('--behavior', action='store_true', help='Also run the final LSTM then ST-GCN models')
+    p.add_argument('--stgcn', type=Path, help='Explicit classifier weight override')
+    p.add_argument('--lstm', type=Path, help='Explicit forecast weight override')
+    p.add_argument('--normalization', choices=['legacy_pair', 'training_stats'])
+    p.add_argument('--stats', type=Path, help='Explicit normalization statistics override')
     p.add_argument('--model-fps', type=float, default=30, help='Resampling rate for the 50-pose model window')
     p.add_argument('--model-interval', type=float, default=0.2, help='Minimum model update interval in seconds')
     p.add_argument('--prediction-ttl', type=float, default=0.6, help='Expire predictions older than this many seconds')
@@ -65,17 +70,41 @@ def arguments(argv=None):
             a.road = RoadZone([[float(v) for v in point.split(',')] for point in a.road])
         except ValueError as exc:
             p.error(str(exc))
+    # Resolve the same published config as the video entry point. A fully explicit
+    # custom setup (including pose-only fixtures) does not need the release bundle.
+    fields = ('pose_model', 'stgcn', 'lstm', 'stats', 'normalization')
+    a.model_overrides = [key for key in fields if getattr(a, key) is not None]
+    a.bundle_defaults = a.pose_model is None or (a.behavior and any(
+        getattr(a, key) is None for key in ('stgcn', 'lstm', 'normalization')
+    )) or (a.behavior and a.normalization == 'training_stats' and a.stats is None)
+    a.model_version = None
+    if a.bundle_defaults:
+        a.model_dir = a.model_dir.expanduser().resolve()
+        try:
+            config = json.loads((a.model_dir / 'model_config.json').read_text(encoding='utf-8'))
+            if config.get('pose_filter'):
+                raise ValueError('Camera entry requires a bundle with pose_filter=false')
+            for key in fields:
+                if getattr(a, key) is None:
+                    setattr(a, key, config[key] if key == 'normalization' else a.model_dir / config[key])
+            a.model_version = config['version']
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            p.error('Cannot load model_config.json; run download_final_models.py or set --model-dir: ' + str(exc))
+    if a.normalization is None:
+        a.normalization = 'legacy_pair'
     return a
 
 
 def validate_artifacts(a):
+    if a.bundle_defaults:
+        validate_bundle(a.model_dir)
     required = [a.pose_model]
     if a.behavior:
         required.extend([a.stgcn, a.lstm])
         if a.normalization == 'training_stats':
             required.append(a.stats)
     for path in required:
-        if not path.expanduser().is_file():
+        if path is None or not path.expanduser().is_file():
             raise FileNotFoundError('Local weights/statistics missing: ' + str(path))
     if a.log and a.log.expanduser().exists():
         raise FileExistsError('Refusing to overwrite: ' + str(a.log))
@@ -218,7 +247,7 @@ def run(a):
     if a.behavior:
         from .behavior import BehaviorPredictor
         predictor = BehaviorPredictor(a.stgcn.expanduser(), a.lstm.expanduser(), str(device),
-                                      a.normalization, a.stats.expanduser())
+                                      a.normalization, a.stats.expanduser() if a.stats else None)
     backends = {'auto': cv2.CAP_ANY, 'dshow': cv2.CAP_DSHOW,
                 'msmf': cv2.CAP_MSMF, 'avfoundation': cv2.CAP_AVFOUNDATION}
     log = None
@@ -229,7 +258,7 @@ def run(a):
     view_dimensions = [1, 1]
     processed = skipped = sequence = 0
     fps, status, message = 0.0, 'failed', ''
-    started = time.monotonic()
+    started = time.perf_counter()
     last_processed = started
     previous_shape = None
     last_preview = None
@@ -252,7 +281,7 @@ def run(a):
             return
         if last_preview is not None:
             old_frame, old_people, old_rows, timestamp = last_preview
-            age = time.monotonic() - timestamp
+            age = time.perf_counter() - timestamp
             shown = deepcopy(old_rows)
             expire_display(shown, age, a.prediction_ttl)
             cv2.imshow(window, render_frame(old_frame, old_people, shown, road, points,
@@ -281,6 +310,8 @@ def run(a):
             log = target.open('x', encoding='utf-8')
             write({'event': 'session', 'created_utc': datetime.now(timezone.utc).isoformat(),
                    'camera': a.camera, 'backend': a.backend, 'device': str(device),
+                   'model_dir': str(a.model_dir), 'model_version': a.model_version,
+                   'model_overrides': a.model_overrides,
                    'pose_model': str(a.pose_model.expanduser().resolve()),
                    'behavior_enabled': a.behavior, 'stgcn': str(a.stgcn) if a.behavior else None,
                    'lstm': str(a.lstm) if a.behavior else None, 'normalization': a.normalization,
@@ -332,9 +363,9 @@ def run(a):
             # Keep unexpired raw rows for repeated UI refreshes; each refresh applies
             # wall-clock age once, including time spent in the next inference/read.
             last_preview = (frame, people, deepcopy(rows), packet.timestamp)
-            age = time.monotonic() - packet.timestamp
+            age = time.perf_counter() - packet.timestamp
             expire_display(rows, age, a.prediction_ttl)
-            now = time.monotonic()
+            now = time.perf_counter()
             instantaneous = 1 / max(now - last_processed, 1e-6)
             last_processed = now
             fps = instantaneous if fps == 0 else 0.85 * fps + 0.15 * instantaneous
@@ -391,7 +422,7 @@ def run(a):
         finally:
             try:
                 write({'event': 'end', 'status': status, 'processed_frames': processed,
-                       'skipped_capture_frames': skipped, 'elapsed_seconds': time.monotonic() - started,
+                       'skipped_capture_frames': skipped, 'elapsed_seconds': time.perf_counter() - started,
                        'cleanup_errors': cleanup_errors})
             finally:
                 if log is not None:

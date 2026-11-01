@@ -1,0 +1,252 @@
+{
+  "configuration": {
+    "learning_rates": [
+      0.0005,
+      0.001,
+      0.002
+    ],
+    "seed": 2026,
+    "epochs": 125,
+    "batch_size": 128,
+    "optimizer": "SGD",
+    "momentum": 0.0,
+    "weight_decay": 0.0,
+    "loss": "CrossEntropyLoss",
+    "selection": "highest validation accuracy; earliest tie",
+    "train_samples": 796,
+    "validation_samples": 200,
+    "scope": "internal overlapping-window validation; normalization fitted before split",
+    "dataset": "D:\\SRTP_modern_internal_20261028\\datasets\\stgcn.pt",
+    "dataset_sha256": "2a58022b17c26c7f2705ea4fe4f4be0d39aee4e26df28219bc2adb5ea49da4d6",
+    "model_source_sha256": "a08b2a96ac97178557d3388c9c3752b62144a1f398259fa98b74a88a9da8ec12",
+    "device": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "torch": "2.2.2+cu121",
+    "cudnn_allow_tf32": true,
+    "identical_initialization": true,
+    "identical_minibatch_order": true
+  },
+  "results": [
+    {
+      "learning_rate": 0.0005,
+      "initial_state_sha256": "6e9611dbacec06d32819dc81743bb32be49cb9368fdee070b327ba78061c3ac0",
+      "elapsed_seconds": 157.86842819999998,
+      "checkpoint_verified": true,
+      "selected": {
+        "epoch": 104,
+        "validation_loss": 0.22526479065418242,
+        "samples": 200,
+        "correct": 190,
+        "accuracy": 0.95,
+        "macro_precision": 0.9673202614379086,
+        "macro_recall": 0.8912831896183727,
+        "macro_f1": 0.9237934580039843,
+        "weighted_precision": 0.9513725490196078,
+        "weighted_recall": 0.95,
+        "weighted_f1": 0.9489421149026412,
+        "micro_precision": 0.95,
+        "micro_recall": 0.95,
+        "micro_f1": 0.95,
+        "balanced_accuracy": 0.8912831896183727,
+        "confusion_matrix": [
+          [
+            49,
+            0,
+            4
+          ],
+          [
+            0,
+            13,
+            4
+          ],
+          [
+            2,
+            0,
+            128
+          ]
+        ],
+        "per_class": [
+          {
+            "label": 0,
+            "name": "irrelevant",
+            "support": 53,
+            "precision": 0.9607843137254902,
+            "recall": 0.9245283018867925,
+            "f1": 0.9423076923076923
+          },
+          {
+            "label": 1,
+            "name": "not_crossing",
+            "support": 17,
+            "precision": 1.0,
+            "recall": 0.7647058823529411,
+            "f1": 0.8666666666666667
+          },
+          {
+            "label": 2,
+            "name": "crossing",
+            "support": 130,
+            "precision": 0.9411764705882353,
+            "recall": 0.9846153846153847,
+            "f1": 0.9624060150375939
+          }
+        ]
+      },
+      "final": {
+        "epoch": 125,
+        "train_loss": 0.1655089335525455,
+        "validation_loss": 0.1894482785463333,
+        "train_accuracy": 0.957286432160804,
+        "validation_accuracy": 0.94,
+        "macro_f1": 0.891828383726275
+      }
+    },
+    {
+      "learning_rate": 0.001,
+      "initial_state_sha256": "6e9611dbacec06d32819dc81743bb32be49cb9368fdee070b327ba78061c3ac0",
+      "elapsed_seconds": 156.46803290000003,
+      "checkpoint_verified": true,
+      "selected": {
+        "epoch": 121,
+        "validation_loss": 0.07532676607370377,
+        "samples": 200,
+        "correct": 196,
+        "accuracy": 0.98,
+        "macro_precision": 0.9715909090909092,
+        "macro_recall": 0.951930902985287,
+        "macro_f1": 0.9614333079981936,
+        "weighted_precision": 0.9799147727272728,
+        "weighted_recall": 0.98,
+        "weighted_f1": 0.9798252536267803,
+        "micro_precision": 0.98,
+        "micro_recall": 0.98,
+        "micro_f1": 0.98,
+        "balanced_accuracy": 0.951930902985287,
+        "confusion_matrix": [
+          [
+            52,
+            0,
+            1
+          ],
+          [
+            0,
+            15,
+            2
+          ],
+          [
+            0,
+            1,
+            129
+          ]
+        ],
+        "per_class": [
+          {
+            "label": 0,
+            "name": "irrelevant",
+            "support": 53,
+            "precision": 1.0,
+            "recall": 0.9811320754716981,
+            "f1": 0.9904761904761905
+          },
+          {
+            "label": 1,
+            "name": "not_crossing",
+            "support": 17,
+            "precision": 0.9375,
+            "recall": 0.8823529411764706,
+            "f1": 0.9090909090909091
+          },
+          {
+            "label": 2,
+            "name": "crossing",
+            "support": 130,
+            "precision": 0.9772727272727273,
+            "recall": 0.9923076923076923,
+            "f1": 0.9847328244274809
+          }
+        ]
+      },
+      "final": {
+        "epoch": 125,
+        "train_loss": 0.05079761214891271,
+        "validation_loss": 0.07714897334575653,
+        "train_accuracy": 0.9974874371859297,
+        "validation_accuracy": 0.97,
+        "macro_f1": 0.9448748081608122
+      }
+    },
+    {
+      "learning_rate": 0.002,
+      "initial_state_sha256": "6e9611dbacec06d32819dc81743bb32be49cb9368fdee070b327ba78061c3ac0",
+      "elapsed_seconds": 156.6329789,
+      "checkpoint_verified": true,
+      "selected": {
+        "epoch": 91,
+        "validation_loss": 0.05234547168016434,
+        "samples": 200,
+        "correct": 198,
+        "accuracy": 0.99,
+        "macro_precision": 0.9649122807017544,
+        "macro_recall": 0.9948717948717949,
+        "macro_f1": 0.9788975021533162,
+        "weighted_precision": 0.9910526315789474,
+        "weighted_recall": 0.99,
+        "weighted_f1": 0.9902390180878552,
+        "micro_precision": 0.99,
+        "micro_recall": 0.99,
+        "micro_f1": 0.99,
+        "balanced_accuracy": 0.9948717948717949,
+        "confusion_matrix": [
+          [
+            53,
+            0,
+            0
+          ],
+          [
+            0,
+            17,
+            0
+          ],
+          [
+            0,
+            2,
+            128
+          ]
+        ],
+        "per_class": [
+          {
+            "label": 0,
+            "name": "irrelevant",
+            "support": 53,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          {
+            "label": 1,
+            "name": "not_crossing",
+            "support": 17,
+            "precision": 0.8947368421052632,
+            "recall": 1.0,
+            "f1": 0.9444444444444444
+          },
+          {
+            "label": 2,
+            "name": "crossing",
+            "support": 130,
+            "precision": 1.0,
+            "recall": 0.9846153846153847,
+            "f1": 0.9922480620155039
+          }
+        ]
+      },
+      "final": {
+        "epoch": 125,
+        "train_loss": 0.01863505363688996,
+        "validation_loss": 0.04578032225370407,
+        "train_accuracy": 0.9987437185929648,
+        "validation_accuracy": 0.98,
+        "macro_f1": 0.9759624374273365
+      }
+    }
+  ]
+}

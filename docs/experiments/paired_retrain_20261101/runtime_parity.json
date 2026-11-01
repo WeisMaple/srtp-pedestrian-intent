@@ -1,0 +1,10 @@
+{
+  "observed": {
+    "max_probability_difference": 1.0728836059570312e-06,
+    "selected_checkpoint_reloaded": true
+  },
+  "forecast": {
+    "max_probability_difference": 5.662441253662109e-07,
+    "selected_checkpoint_reloaded": true
+  }
+}

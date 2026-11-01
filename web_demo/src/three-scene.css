@@ -37,6 +37,10 @@
 .has-spatial-trace .neural-scene-hint{top:74px;bottom:auto}.has-spatial-trace .neural-cell-readout{bottom:140px}
 @media(max-width:800px){.neural-trace-readout{left:10px;right:10px;top:auto;bottom:40px;width:auto;grid-template-columns:1fr}.neural-trace-readout>strong{font-size:13px}.has-spatial-trace .neural-scene-hint{top:124px}.spatial-workbench>.neural-scene{height:640px}}
 
+.neural-camera-tools .neural-ui-toggle{border-color:#52716e;background:#102832e8;color:#d4ece5;white-space:nowrap}
+.neural-ui-toggle:focus-visible{outline:2px solid #f2c779;outline-offset:3px}
+.scene-ui-hidden .neural-scene-toolbar{justify-content:flex-end;background:none}
+.scene-ui-hidden .network-attached-trace,.scene-ui-hidden .graph-story-caption,.scene-ui-hidden .graph-story-controls,.scene-ui-hidden .neural-scene-title,.scene-ui-hidden .neural-camera-tools>:not(.neural-ui-toggle),.scene-ui-hidden .neural-cell-readout,.scene-ui-hidden .neural-scene-hint,.scene-ui-hidden .neural-scene-scale,.scene-ui-hidden .sx-guided-return,.scene-ui-hidden .neural-trace-readout{display:none!important}
 .network-attached-trace{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}.network-attached-trace[hidden]{display:none}
 .attached-leaders{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.attached-leaders line{stroke:#a7c4ba;stroke-width:1;opacity:.65;stroke-dasharray:3 3}
 .attached-value{position:absolute;left:0;top:0;padding:10px 12px;border:1px solid #466259;border-radius:7px;background:#0b1a23ee;box-shadow:0 5px 20px #0003;backdrop-filter:blur(5px);box-sizing:border-box}

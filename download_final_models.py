@@ -21,7 +21,10 @@ def main():
                 target=(folder/entry.filename).resolve()
                 if folder.resolve() not in target.parents:raise RuntimeError('Unsafe archive path')
             z.extractall(folder)
-        shutil.copytree(folder/'final',dest)
+        bundle=folder/'weights'/'final'
+        if not bundle.is_dir():
+            bundle=folder/'final'  # Historical v1 archive layout.
+        shutil.copytree(bundle,dest)
     assert matches();print('Final model files verified:',dest)
 
 if __name__=='__main__':main()

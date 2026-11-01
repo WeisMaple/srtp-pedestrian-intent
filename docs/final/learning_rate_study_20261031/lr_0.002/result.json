@@ -1,0 +1,74 @@
+{
+  "learning_rate": 0.002,
+  "initial_state_sha256": "6e9611dbacec06d32819dc81743bb32be49cb9368fdee070b327ba78061c3ac0",
+  "elapsed_seconds": 156.6329789,
+  "checkpoint_verified": true,
+  "selected": {
+    "epoch": 91,
+    "validation_loss": 0.05234547168016434,
+    "samples": 200,
+    "correct": 198,
+    "accuracy": 0.99,
+    "macro_precision": 0.9649122807017544,
+    "macro_recall": 0.9948717948717949,
+    "macro_f1": 0.9788975021533162,
+    "weighted_precision": 0.9910526315789474,
+    "weighted_recall": 0.99,
+    "weighted_f1": 0.9902390180878552,
+    "micro_precision": 0.99,
+    "micro_recall": 0.99,
+    "micro_f1": 0.99,
+    "balanced_accuracy": 0.9948717948717949,
+    "confusion_matrix": [
+      [
+        53,
+        0,
+        0
+      ],
+      [
+        0,
+        17,
+        0
+      ],
+      [
+        0,
+        2,
+        128
+      ]
+    ],
+    "per_class": [
+      {
+        "label": 0,
+        "name": "irrelevant",
+        "support": 53,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": 1,
+        "name": "not_crossing",
+        "support": 17,
+        "precision": 0.8947368421052632,
+        "recall": 1.0,
+        "f1": 0.9444444444444444
+      },
+      {
+        "label": 2,
+        "name": "crossing",
+        "support": 130,
+        "precision": 1.0,
+        "recall": 0.9846153846153847,
+        "f1": 0.9922480620155039
+      }
+    ]
+  },
+  "final": {
+    "epoch": 125,
+    "train_loss": 0.01863505363688996,
+    "validation_loss": 0.04578032225370407,
+    "train_accuracy": 0.9987437185929648,
+    "validation_accuracy": 0.98,
+    "macro_f1": 0.9759624374273365
+  }
+}

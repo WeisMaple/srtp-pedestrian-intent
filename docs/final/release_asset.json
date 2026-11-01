@@ -1,7 +1,7 @@
 {
-  "tag": "v1.0.0",
-  "file": "srtp-final-models-v1.0.0.zip",
-  "bytes": 52666261,
-  "sha256": "917bd22ea9c3ac27b2d4153e36422653c4aca4959c5a2869a0195ea4a9f8aae4",
-  "url": "https://github.com/WeisMaple/srtp-pedestrian-intent/releases/download/v1.0.0/srtp-final-models-v1.0.0.zip"
+  "tag": "v2.0.0",
+  "file": "srtp-final-models-v2.0.0.zip",
+  "bytes": 52641277,
+  "sha256": "d6f5dad5c070e54492fb998ad65f96e6fd449fdf9796b103cf75d68d66a8a388",
+  "url": "https://github.com/WeisMaple/srtp-pedestrian-intent/releases/download/v2.0.0/srtp-final-models-v2.0.0.zip"
 }

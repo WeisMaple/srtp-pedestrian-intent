@@ -1,0 +1,201 @@
+{
+  "method": "sqrt_inverse",
+  "criterion": "same criterion across all three selected checkpoints, frozen before test evaluation",
+  "validation": {
+    "inverse": {
+      "epoch": 34,
+      "train_weighted_loss": 0.22893274834335667,
+      "val_loss": 0.5967287291651187,
+      "accuracy": 0.8342391304347826,
+      "macro_f1": 0.6239457151782305,
+      "metrics": {
+        "samples": 368,
+        "correct": 307,
+        "accuracy": 0.8342391304347826,
+        "macro_precision": 0.5666651680341688,
+        "macro_recall": 0.7559874941009911,
+        "macro_f1": 0.6239457151782305,
+        "weighted_precision": 0.8972786259168942,
+        "weighted_recall": 0.8342391304347826,
+        "weighted_f1": 0.8562840393086578,
+        "micro_precision": 0.8342391304347826,
+        "micro_recall": 0.8342391304347826,
+        "micro_f1": 0.8342391304347826,
+        "balanced_accuracy": 0.7559874941009911,
+        "confusion_matrix": [
+          [
+            19,
+            2,
+            5
+          ],
+          [
+            0,
+            11,
+            5
+          ],
+          [
+            31,
+            18,
+            277
+          ]
+        ],
+        "per_class": [
+          {
+            "label": 0,
+            "name": "irrelevant",
+            "support": 26,
+            "precision": 0.38,
+            "recall": 0.7307692307692307,
+            "f1": 0.5
+          },
+          {
+            "label": 1,
+            "name": "not_crossing",
+            "support": 16,
+            "precision": 0.3548387096774194,
+            "recall": 0.6875,
+            "f1": 0.46808510638297873
+          },
+          {
+            "label": 2,
+            "name": "crossing",
+            "support": 326,
+            "precision": 0.9651567944250871,
+            "recall": 0.8496932515337423,
+            "f1": 0.9037520391517129
+          }
+        ]
+      }
+    },
+    "sqrt_inverse": {
+      "epoch": 28,
+      "train_weighted_loss": 0.3015471981423832,
+      "val_loss": 0.4261663996655008,
+      "accuracy": 0.8885869565217391,
+      "macro_f1": 0.6915433973435697,
+      "metrics": {
+        "samples": 368,
+        "correct": 327,
+        "accuracy": 0.8885869565217391,
+        "macro_precision": 0.6941540843979869,
+        "macro_recall": 0.717004876514079,
+        "macro_f1": 0.6915433973435697,
+        "weighted_precision": 0.9054120587789728,
+        "weighted_recall": 0.8885869565217391,
+        "weighted_f1": 0.8941231840429638,
+        "micro_precision": 0.8885869565217391,
+        "micro_recall": 0.8885869565217391,
+        "micro_f1": 0.8885869565217391,
+        "balanced_accuracy": 0.717004876514079,
+        "confusion_matrix": [
+          [
+            19,
+            0,
+            7
+          ],
+          [
+            0,
+            8,
+            8
+          ],
+          [
+            22,
+            4,
+            300
+          ]
+        ],
+        "per_class": [
+          {
+            "label": 0,
+            "name": "irrelevant",
+            "support": 26,
+            "precision": 0.4634146341463415,
+            "recall": 0.7307692307692307,
+            "f1": 0.5671641791044776
+          },
+          {
+            "label": 1,
+            "name": "not_crossing",
+            "support": 16,
+            "precision": 0.6666666666666666,
+            "recall": 0.5,
+            "f1": 0.5714285714285714
+          },
+          {
+            "label": 2,
+            "name": "crossing",
+            "support": 326,
+            "precision": 0.9523809523809523,
+            "recall": 0.9202453987730062,
+            "f1": 0.9360374414976599
+          }
+        ]
+      }
+    },
+    "effective_0999": {
+      "epoch": 34,
+      "train_weighted_loss": 0.23846367156886433,
+      "val_loss": 0.5060216965882675,
+      "accuracy": 0.8641304347826086,
+      "macro_f1": 0.6611257122747115,
+      "metrics": {
+        "samples": 368,
+        "correct": 318,
+        "accuracy": 0.8641304347826086,
+        "macro_precision": 0.6123001890443751,
+        "macro_recall": 0.7474240994179645,
+        "macro_f1": 0.6611257122747115,
+        "weighted_precision": 0.9001462698631556,
+        "weighted_recall": 0.8641304347826086,
+        "weighted_f1": 0.8773360640927599,
+        "micro_precision": 0.8641304347826086,
+        "micro_recall": 0.8641304347826086,
+        "micro_f1": 0.8641304347826086,
+        "balanced_accuracy": 0.7474240994179645,
+        "confusion_matrix": [
+          [
+            19,
+            1,
+            6
+          ],
+          [
+            0,
+            10,
+            6
+          ],
+          [
+            26,
+            11,
+            289
+          ]
+        ],
+        "per_class": [
+          {
+            "label": 0,
+            "name": "irrelevant",
+            "support": 26,
+            "precision": 0.4222222222222222,
+            "recall": 0.7307692307692307,
+            "f1": 0.5352112676056338
+          },
+          {
+            "label": 1,
+            "name": "not_crossing",
+            "support": 16,
+            "precision": 0.45454545454545453,
+            "recall": 0.625,
+            "f1": 0.5263157894736842
+          },
+          {
+            "label": 2,
+            "name": "crossing",
+            "support": 326,
+            "precision": 0.9601328903654485,
+            "recall": 0.8865030674846626,
+            "f1": 0.9218500797448166
+          }
+        ]
+      }
+    }
+  }
+}

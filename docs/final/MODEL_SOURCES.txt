@@ -1,4 +1,7 @@
-ST-GCN: user-requested internal-validation checkpoint, epoch121; SHA256 recorded in manifest.
-LSTM: existing YOLO26 feature training, validation-MSE checkpoint epoch68. The two components were trained separately; no 98% end-to-end claim.
-YOLO26s-Pose: https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo26s-pose.pt ; see https://github.com/ultralytics/ultralytics for upstream license.
-Original network structures and third-party source notices are in the code repository.
+SRTP final v2.0.0
+YOLO26s-Pose: Ultralytics pretrained yolo26s-pose.pt.
+LSTM: unchanged 10-layer, hidden size 256; last-observation-relative input/output; validation-selected short stage epoch 13 plus recursive stage epoch 13.
+ST-GCN: unchanged architecture; sqrt inverse class-frequency weighted CE; epoch 28 selected by video-disjoint validation Macro-F1.
+Statistics: training-only LSTM scale and out-of-fold forecast classifier statistics.
+Split: 176 train / 44 validation / 126 test videos. Test split was used during project development.
+Test: 1241/1506 correct, accuracy 0.8240371846, macro-F1 0.5367562833. Coverage: 1506/4189.

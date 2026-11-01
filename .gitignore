@@ -10,6 +10,7 @@
 !/*.py
 !/run_prediction.ps1
 !/run_demo.ps1
+!/run_final_web.ps1
 !/api/
 !/deepsort/
 !/yolo/
@@ -56,7 +57,9 @@ weights/
 artifacts/
 /Models/
 /checkpoints/
-/data/
+!/data/
+/data/*
+!/data/PROJECT_DATA.md
 runs/
 results/
 *.pt

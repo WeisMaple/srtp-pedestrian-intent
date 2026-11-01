@@ -1,0 +1,6 @@
+{
+  "each_training_forecast_once": true,
+  "held_video_excluded": true,
+  "training_only_statistics": true,
+  "source_main_lstm_sha256": "8907d18ba855d57badd73e8eed600b812287dd09e9889e40c52547030da0f521"
+}

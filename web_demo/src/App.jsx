@@ -21,6 +21,6 @@ export default function App() {
     return <><Header health={state.health} />
         {state.error && <div className="error-toast" role="alert"><Icon name="info" size={20} /><span>{state.error}</span><button className="icon-button" aria-label="关闭提示" onClick={state.dismissError}><Icon name="close" size={16} /></button></div>}
         <ProcessPage state={state} job={state.job} selectedId={selectedId} onSelect={setSelectedId} />
-        <footer className="app-footer"><span>深度学习课程大作业 · 基于骨架的行人意图分析</span><span>结果仅在本地处理</span></footer>
+        <footer className="app-footer"><span>基于车载视频的行人过街意图预测</span><span>结果仅在本地处理</span></footer>
     </>;
 }

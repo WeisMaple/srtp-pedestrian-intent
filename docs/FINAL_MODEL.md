@@ -1,20 +1,16 @@
-# 最终模型清单
+# 最终模型 v2.0.0
 
-固定发布标签：`v1.0.0`。GitHub Release提供 `srtp-final-models-v1.0.0.zip`；下载地址和SHA256在 `final/release_asset.json`，包内各文件校验值在 `final/manifest.json`。
-
-| 组件 | 固定来源 |
+| 组件 | 配置 |
 |---|---|
-| YOLO26s-Pose | 官方v8.4.0资产 |
-| ST-GCN | 新版骨架、原代码式内部验证的第121轮；200个验证窗口，196个正确 |
-| LSTM | 已完成的YOLO26骨架训练，第68轮验证MSE选模权重 |
-| 骨架处理 | COCO17，50次观测，ByteTrack，未启用实验性平滑 |
-| 视频归一化 | `legacy_pair`，沿用原推理逻辑 |
-| 设备调度 | 自动选择检测设备，行为推理为CPU |
+| 人体姿态估计 | YOLO26s-Pose，输入长边640，检测阈值0.1 |
+| 跟踪 | ByteTrack，17关键点，50次历史观测 |
+| LSTM | 10层、隐藏256、每次输出10步，递归5轮；短期13轮＋递归13轮 |
+| ST-GCN | 原10个时空卷积块；平方根倒数类别权重，第28轮 |
+| 数值变换 | `training_stats`；`last_observation_relative`，每轮更新最后观测参照 |
+| 设备 | YOLO自动选择GPU；网页与视频演示的行为模型使用CPU |
 
-分类器是按用户选择固定的内部验证最佳检查点，不代表根据完整视频意图评测选出的全流程最优组合。LSTM与分类器分别训练，使用同一种YOLO26骨架格式；该最终组合已单独做视频运行检查。98%和Macro-F1=0.9614仅对应已保存内部验证窗口上的ST-GCN，不对应视频流程，也不代表独立泛化能力。
+模型包同时包含 `model_config.json`、`normalization.pt`、三组权重和来源说明。`normalization.pt` 中的 `lstm_representation` 明确指定相对表示，避免使用绝对坐标解码。逐轮参照骨架也传入可视化记录，因此记录讲解和实时采样显示同一套计算。
 
-包中的 `normalization.pt` 保留该ST-GCN训练统计和配套LSTM的训练统计，便于复核。默认视频流程使用固定参考归一化，不能通过切换归一化选项直接沿用内部验证分数。
+校验清单见 `final/manifest.json`；模型包网址与SHA256见 `final/release_asset.json`。部署后与所选实验实现比较8个真实输入，类别、概率、未来骨架完全一致，见 `final/v2_20261102/runtime_parity.json`。
 
-最终分类器SHA256：`956b4f50912fe0f716eba54cc7f0e19f939fb49980879aaf40d99c50227d918a`。
-
-重载权重后的完整指标见 `final/detailed_metrics_20261029.json`；最终视频运行记录见 `final/video_check.json`。原始视频和数据集不上传。
+验证准确率88.86%，测试准确率82.40%、Macro-F1 0.5368、覆盖率35.95%；样本和评价范围见 [最终实验记录](final/v2_20261102/README.md)。

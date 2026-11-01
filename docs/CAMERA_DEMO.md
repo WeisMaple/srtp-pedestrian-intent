@@ -1,10 +1,10 @@
 # 摄像头模拟过街演示（试验版）
 
-固定摄像头拍摄同学，在地面划定模拟道路。这个入口用于现场试跑：展示 YOLO26 骨架、ByteTrack ID、轨迹外推，以及可选的原 LSTM → ST-GCN 模型对照。原 `run_prediction.py` 和离线实验默认参数保持不变。
+固定摄像头拍摄同学，在地面划定模拟道路。这个入口用于现场试跑：展示 YOLO26 骨架、ByteTrack ID、轨迹外推，以及可选的最终版 LSTM → ST-GCN 分类。原 `run_prediction.py` 和离线实验默认参数保持不变。
 
 ## 启动
 
-使用 README 中的 Python 3.9、PyTorch 和隔离 Ultralytics 环境，需要带 GUI 的 `opencv-python`。基础演示仅需本地 `yolo26s-pose.pt`；程序不会自动下载权重。
+使用 README 中的 Python 3.9、PyTorch 和隔离 Ultralytics 环境，需要带 GUI 的 `opencv-python`。先运行 `python download_final_models.py` 准备最终版模型包；默认从项目 `weights/final/model_config.json` 读取 YOLO、LSTM、ST-GCN 和归一化配置，并按发布清单校验文件。程序不会自动下载权重。
 
 在已准备好权重的 Windows 机器上，从仓库根目录运行：
 
@@ -13,7 +13,7 @@ $env:SRTP_MODERN_HOME = 'D:\SRTP_modern_20261027'
 python -s run_camera_demo.py --camera 0 --backend dshow
 ```
 
-如果摄像头打不开，先关闭占用摄像头的软件，检查系统权限，再试 `--camera 1` 或 `--backend msmf`。其他平台可省略 `--backend`；macOS 可用 `--backend avfoundation --device cpu`，现场性能需另测。模型路径不同可指定 `--pose-model 'path/to/yolo26s-pose.pt'`。
+如果摄像头打不开，先关闭占用摄像头的软件，检查系统权限，再试 `--camera 1` 或 `--backend msmf`。其他平台可省略 `--backend`；macOS 可用 `--backend avfoundation --device cpu`，现场性能需另测。模型包位于其他目录时使用 `--model-dir` 或 `SRTP_DEMO_MODEL_DIR`。显式 `--pose-model` 可覆盖姿态权重；仅做姿态/轨迹演示且显式提供该文件时，无需完整模型包。
 
 ## 操作
 
@@ -33,15 +33,15 @@ python -s run_camera_demo.py --camera 0 --backend dshow
 | `feet_missing` / `pose_missing` | 脚部或姿态不足，停止相应输出 |
 | `expired` | 结果超过时效，不再展示原预测值 |
 
-## 原模型对照
+## 最终版行为模型
 
-准备好 `stgcn_reproduced.pt` 和 `lstm_reproduced_wd0.pt` 后：
+准备好最终版模型包后，增加 `--behavior` 启用与网页相同的 LSTM/ST-GCN 权重：
 
 ```powershell
 python -s run_camera_demo.py --camera 0 --backend dshow --behavior
 ```
 
-模型仍按 50 姿态 → LSTM 五轮预测 → ST-GCN 分类运行，默认 `legacy_pair` 归一化。用 `--stgcn`、`--lstm` 指定其他成对权重；使用 `--normalization training_stats` 时须通过 `--stats` 提供与权重配套的统计文件。
+模型按 50 姿态 → LSTM 五轮预测 → ST-GCN 分类运行，归一化读取模型包配置（最终版为 `training_stats`，LSTM采用 `last_observation_relative`）。保留 `--stgcn`、`--lstm`、`--stats` 和 `--normalization` 用于显式实验覆盖；日志记录包目录、版本与覆盖项，使用覆盖项时不能再视为未改动的最终模型组合。默认不再读取旧实验权重目录。
 
 模型结果单独标记 `Model`。类 0 显示为 JAAD 的 `irrelevant`；缺失、过期属于额外运行状态。`score` 是未校准的模型分数，不是已验证的正确概率。轨迹外推不会修改或替换模型分类。
 

@@ -7,6 +7,11 @@ function savedJobId() {
     try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
 }
 
+function linkedJobId() {
+    const id = new URLSearchParams(window.location.search).get('job');
+    return id && /^[a-zA-Z0-9_-]{1,128}$/.test(id) ? id : null;
+}
+
 export function useJob() {
     const [job, setJob] = useState(null);
     const [health, setHealth] = useState(null);
@@ -38,11 +43,12 @@ export function useJob() {
         (async () => {
             const result = await loadHealth();
             const active = typeof result?.active_job === 'string' ? result.active_job : result?.active_job?.id;
-            const id = active || savedJobId();
+            const linked = linkedJobId();
+            const id = linked || active || savedJobId();
             if (!id || disposed) return;
             selectedId.current = id;
             try { const snapshot = await request(jobUrl(id)); if (!disposed) acceptSnapshot(snapshot); }
-            catch { if (!disposed) { selectedId.current = null; try { localStorage.removeItem(STORAGE_KEY); } catch { /* Storage may be disabled. */ } } }
+            catch { if (!disposed) { selectedId.current = null; if (linked) setError('链接中的分析记录未能载入，请检查本地服务或重新选择视频。'); else try { localStorage.removeItem(STORAGE_KEY); } catch { /* Storage may be disabled. */ } } }
         })();
         const interval = window.setInterval(loadHealth, 15000);
         return () => { disposed = true; mounted.current = false; window.clearInterval(interval); };

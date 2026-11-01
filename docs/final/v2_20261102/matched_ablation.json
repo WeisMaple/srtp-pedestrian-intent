@@ -1,0 +1,132 @@
+{
+  "observed": {
+    "samples": 1506,
+    "correct": 1175,
+    "accuracy": 0.7802124833997344,
+    "macro_precision": 0.4749531591379121,
+    "macro_recall": 0.5361164482735338,
+    "macro_f1": 0.46385903740851236,
+    "weighted_precision": 0.7653390994407229,
+    "weighted_recall": 0.7802124833997344,
+    "weighted_f1": 0.7631794313487799,
+    "micro_precision": 0.7802124833997344,
+    "micro_recall": 0.7802124833997344,
+    "micro_f1": 0.7802124833997344,
+    "balanced_accuracy": 0.5361164482735338,
+    "confusion_matrix": [
+      [
+        33,
+        35,
+        162
+      ],
+      [
+        1,
+        24,
+        18
+      ],
+      [
+        59,
+        56,
+        1118
+      ]
+    ],
+    "per_class": [
+      {
+        "label": 0,
+        "name": "irrelevant",
+        "support": 230,
+        "precision": 0.3548387096774194,
+        "recall": 0.14347826086956522,
+        "f1": 0.2043343653250774
+      },
+      {
+        "label": 1,
+        "name": "not_crossing",
+        "support": 43,
+        "precision": 0.20869565217391303,
+        "recall": 0.5581395348837209,
+        "f1": 0.3037974683544304
+      },
+      {
+        "label": 2,
+        "name": "crossing",
+        "support": 1233,
+        "precision": 0.8613251155624037,
+        "recall": 0.9067315490673155,
+        "f1": 0.8834452785460293
+      }
+    ]
+  },
+  "forecast": {
+    "samples": 1506,
+    "correct": 1241,
+    "accuracy": 0.8240371845949536,
+    "macro_precision": 0.6094211293022526,
+    "macro_recall": 0.577129746486835,
+    "macro_f1": 0.5367562833016426,
+    "weighted_precision": 0.8321994098911027,
+    "weighted_recall": 0.8240371845949536,
+    "weighted_f1": 0.8086950849856722,
+    "micro_precision": 0.8240371845949536,
+    "micro_recall": 0.8240371845949536,
+    "micro_f1": 0.8240371845949536,
+    "balanced_accuracy": 0.577129746486835,
+    "confusion_matrix": [
+      [
+        59,
+        23,
+        148
+      ],
+      [
+        1,
+        23,
+        19
+      ],
+      [
+        22,
+        52,
+        1159
+      ]
+    ],
+    "per_class": [
+      {
+        "label": 0,
+        "name": "irrelevant",
+        "support": 230,
+        "precision": 0.7195121951219512,
+        "recall": 0.2565217391304348,
+        "f1": 0.3782051282051282
+      },
+      {
+        "label": 1,
+        "name": "not_crossing",
+        "support": 43,
+        "precision": 0.23469387755102042,
+        "recall": 0.5348837209302325,
+        "f1": 0.3262411347517731
+      },
+      {
+        "label": 2,
+        "name": "crossing",
+        "support": 1233,
+        "precision": 0.8740573152337858,
+        "recall": 0.9399837793998378,
+        "f1": 0.9058225869480265
+      }
+    ]
+  },
+  "uncertainty": {
+    "unit": "video",
+    "replicates": 2000,
+    "method": "paired percentile bootstrap over all test videos",
+    "accuracy_delta_95ci": [
+      0.009180188734534415,
+      0.08333923512747876
+    ],
+    "macro_f1_delta_95ci": [
+      -0.00773907673213832,
+      0.1450043627169573
+    ]
+  },
+  "scope": "same sqrt-inverse loss, matched sample split, separate branch training; selected by val MacroF1"
+}

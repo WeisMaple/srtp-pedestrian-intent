@@ -56,8 +56,10 @@ class LiveArithmetic:
         if predictor.normalization == 'training_stats':
             mean, std = predictor.stats['lstm_mean'], predictor.stats['lstm_std']
             for batch in range(len(poses)):
-                self.statistics.append((float(poses[batch, 0, 0, 0]), float(mean[0, 0]), float(std[0, 0]),
-                                        'saved_training_statistics_used_by_predictor'))
+                relative = getattr(predictor, 'forecast_representation', 'absolute') == 'last_observation_relative'
+                origin = poses[batch, -1, 0, 0] if relative else mean[0, 0]
+                self.statistics.append((float(poses[batch, 0, 0, 0]), float(origin), float(std[0, 0]),
+                                        'last_observation_anchor_and_training_std' if relative else 'saved_training_statistics_used_by_predictor'))
         else:
             # These statistics are recomputed by the identical production recipe;
             # the normalized result is independently captured at the LSTM input.
@@ -68,6 +70,7 @@ class LiveArithmetic:
                                         float(std[batch, 0, 0, 0]), 'recomputed_from_actual_history_with_production_recipe'))
 
     def normalization(self, sequence):
+        relative = getattr(self.predictor, 'forecast_representation', 'absolute') == 'last_observation_relative'
         for batch, (raw, mean, std, source) in enumerate(self.statistics):
             track_id = self.trace.track_ids[batch]
             row = calculation('lstm.normalize.track%d' % track_id, 'normalization',
@@ -75,8 +78,8 @@ class LiveArithmetic:
                               [raw, mean], [1. / std, -1. / std], sequence[batch, 0, 0],
                               [[0, 0, 0], [0, 0, 0]], ['time', 'joint', 'coordinate'],
                               mean=mean, std=std, statistics_source=source,
-                              input_names=['原始 x 坐标', 'x 坐标均值'], target_indices=[0, 0, 0],
-                              formula='z = (x − mean) / std',
+                              input_names=['原始 x 坐标', '最近观测 x 坐标' if relative else 'x 坐标均值'], target_indices=[0, 0, 0],
+                              formula='z = (x − anchor) / std' if relative else 'z = (x − mean) / std',
                               actual_source='first_round_lstm_input', normalization=self.predictor.normalization)
             self.publish(row, 'lstm', 4)
 
@@ -100,6 +103,10 @@ class LiveArithmetic:
             return
         step = event['step']
         for batch, (_, mean, std, source) in enumerate(self.statistics):
+            relative = event.get('representation') == 'last_observation_relative'
+            if relative:
+                mean = float(event['anchor'][batch, 0, 0, 0])
+                source = 'current_recursive_round_last_observation'
             track_id = self.trace.track_ids[batch]
             row = calculation('lstm.denormalize.round%d.track%d' % (step, track_id),
                               'denormalization', '预测坐标还原', track_id,
@@ -107,9 +114,9 @@ class LiveArithmetic:
                               [self.forecast_values[batch], mean], [std, 1.],
                               event['poses'][batch, 0, 0, 0], [[0, 0, 0], [0, 0, 0]],
                               ['time', 'joint', 'coordinate'], round=step, mean=mean, std=std,
-                              statistics_source=source, input_names=['预测的标准化 x', 'x 坐标均值'],
+                              statistics_source=source, input_names=['预测的标准化变化量' if relative else '预测的标准化 x', '本轮最近观测 x' if relative else 'x 坐标均值'],
                               target_indices=[(step - 1) * 10, 0, 0],
-                              formula='x_pixels = forecast_normalized × std + mean',
+                              formula='x_pixels = delta_normalized × std + anchor' if relative else 'x_pixels = forecast_normalized × std + mean',
                               actual_source='production_forecast_step_event')
             self.publish(row, 'lstm', 4)
 

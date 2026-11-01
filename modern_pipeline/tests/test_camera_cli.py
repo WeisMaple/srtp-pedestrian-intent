@@ -1,7 +1,9 @@
 """CLI validation and live-display expiry checks."""
 import contextlib
 import io
+import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
@@ -16,6 +18,62 @@ from modern_pipeline.camera_cli import arguments, expire_display, run, validate_
 
 
 class CameraCliTests(unittest.TestCase):
+    def bundle_fixture(self, directory):
+        root = Path(directory)
+        bundle = root / 'bundle'
+        bundle.mkdir()
+        config = {'version': '1.0.0', 'pose_model': 'pose-final.pt', 'stgcn': 'classifier-final.pt',
+                  'lstm': 'forecast-final.pt', 'stats': 'stats-final.pt',
+                  'normalization': 'legacy_pair', 'pose_filter': False}
+        for key in ('pose_model', 'stgcn', 'lstm', 'stats'):
+            (bundle / config[key]).write_bytes(key.encode())
+        (bundle / 'model_config.json').write_text(json.dumps(config), encoding='utf-8')
+        manifest = {p.name: {'bytes': p.stat().st_size,
+                            'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in bundle.iterdir()}
+        (root / 'docs/final').mkdir(parents=True)
+        (root / 'docs/final/manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+        return root, bundle, config
+
+    def test_camera_resolves_all_final_config_fields_and_checks_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, bundle, config = self.bundle_fixture(directory)
+            with patch.dict(os.environ, {'SRTP_DEMO_MODEL_DIR': str(bundle)}), \
+                    patch('modern_pipeline.model_bundle.PROJECT_ROOT', root):
+                args = arguments(['--behavior'])
+                validate_artifacts(args)
+            for key in ('pose_model', 'stgcn', 'lstm', 'stats'):
+                self.assertEqual(getattr(args, key), (bundle / config[key]).resolve())
+            self.assertEqual(args.normalization, config['normalization'])
+            self.assertEqual(args.model_version, '1.0.0')
+            self.assertEqual(args.model_overrides, [])
+
+    def test_corrupt_final_weights_are_rejected_before_camera_is_opened(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, bundle, config = self.bundle_fixture(directory)
+            args = arguments(['--behavior', '--model-dir', str(bundle)])
+            (bundle / config['stgcn']).write_bytes(b'corrupted')
+            with patch('modern_pipeline.model_bundle.PROJECT_ROOT', root), patch('cv2.VideoCapture') as camera:
+                with self.assertRaisesRegex(ValueError, 'classifier-final.pt'):
+                    run(args)
+                camera.assert_not_called()
+
+    def test_missing_final_config_does_not_fall_back_to_legacy_weights(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                arguments(['--behavior', '--model-dir', directory])
+
+    def test_explicit_override_is_retained_and_recorded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, bundle, config = self.bundle_fixture(directory)
+            custom = root / 'custom.pt'
+            custom.write_bytes(b'custom')
+            args = arguments(['--behavior', '--model-dir', str(bundle), '--stgcn', str(custom)])
+            with patch('modern_pipeline.model_bundle.PROJECT_ROOT', root):
+                validate_artifacts(args)
+            self.assertEqual(args.stgcn, custom)
+            self.assertEqual(args.lstm, (bundle / config['lstm']).resolve())
+            self.assertEqual(args.model_overrides, ['stgcn'])
+
     def test_rejects_invalid_timing_and_headless_without_road(self):
         for args in (['--horizon', 'nan'], ['--model-fps', '0'], ['--max-gap', '-1'],
                      ['--model-interval', 'inf'], ['--camera', '-1'], ['--no-display']):

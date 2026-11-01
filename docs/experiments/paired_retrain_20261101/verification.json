@@ -1,0 +1,18 @@
+{
+  "split_video_disjoint": true,
+  "fold_fit_disjoint": true,
+  "train_only_stats": true,
+  "identical_test_keys": true,
+  "unchanged_architecture": true,
+  "original_weights_unchanged": true,
+  "branches": {
+    "observed": {
+      "cpu_batch_single_max_error": 4.172325134277344e-07,
+      "prediction_file_matches_metrics": true
+    },
+    "forecast": {
+      "cpu_batch_single_max_error": 2.562999725341797e-06,
+      "prediction_file_matches_metrics": true
+    }
+  }
+}

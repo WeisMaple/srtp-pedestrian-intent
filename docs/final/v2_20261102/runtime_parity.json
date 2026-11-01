@@ -1,0 +1,7 @@
+{
+  "samples": 8,
+  "representation": "last_observation_relative",
+  "max_probability_error": 0.0,
+  "max_future_coordinate_error": 0.0,
+  "same_classes": true
+}

@@ -162,6 +162,7 @@ function addNested(add, raw, inputs, weights, labels) {
     // Equal flatten lengths alone cannot prove channel/kernel alignment.
     if (cells.length !== weightCells.length || cells.some((cell, i) => JSON.stringify(cell.index) !== JSON.stringify(weightCells[i].index))) return;
     add({ ...raw, inputs: cells.map(cell => cell.value), weights: weightCells.map(cell => cell.value),
+        metadata: {...raw.metadata, term_indices: cells.map(cell => cell.index)},
         input_indices: labels ? cells.map(cell => labels(cell.index)) : cells.map(cell => cell.index) });
 }
 

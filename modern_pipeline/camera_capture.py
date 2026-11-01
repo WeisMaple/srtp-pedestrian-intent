@@ -12,7 +12,7 @@ class CapturedFrame:
 
 
 class LatestFrameCapture:
-    def __init__(self, camera, clock=time.monotonic):
+    def __init__(self, camera, clock=time.perf_counter):
         self.camera = camera
         self.clock = clock
         self.condition = threading.Condition()

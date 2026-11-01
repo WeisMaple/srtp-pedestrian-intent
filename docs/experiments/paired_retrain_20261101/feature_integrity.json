@@ -1,0 +1,8 @@
+{
+  "oof_folds": 3,
+  "each_training_forecast_assigned_once": true,
+  "fit_excludes_held_video": true,
+  "statistics_fit_on_train_only": true,
+  "normalization": "per joint/channel, pooled across training examples and time; saved immutable stats reused by inference",
+  "forecast_function": "modern_pipeline.behavior.forecast_with_statistics"
+}

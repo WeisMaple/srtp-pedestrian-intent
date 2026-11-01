@@ -1,0 +1,20 @@
+{
+  "samples": 831,
+  "target": "later YOLO observations on the same tracker segment; no fitting",
+  "metric": "XY squared error standardized by training-only LSTM statistics",
+  "lstm_mse_by_10step_block": [
+    0.11217627446609857,
+    0.14887951335967234,
+    0.21278435976281493,
+    0.29527417275377704,
+    0.39913402526458963
+  ],
+  "persistence_mse_by_10step_block": [
+    0.010884157280526186,
+    0.044751091265129696,
+    0.11001625697427708,
+    0.21496543830661854,
+    0.3671486396544246
+  ],
+  "forecast_confidence_outside_unit_interval_fraction": 0.045640263325546826
+}

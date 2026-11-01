@@ -74,6 +74,9 @@ class JobManager:
         self.frontend_cache = OrderedDict()
         self.frontend_predictor = None
         self.config, self.model_error = None, None
+        import torch
+        self.frontend_device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.behavior_device = 'cpu'
         try:
             self.config = validate_bundle(self.model_dir)
         except (OSError, ValueError) as exc:
@@ -105,7 +108,9 @@ class JobManager:
     def health(self):
         return {'models_ready': self.config is not None, 'encoder_ready': bool(shutil.which('ffmpeg')),
                 'model_name': '行人意图预测 · v' + self.config.get('version', '1.0.0') if self.config else '模型未就绪',
-                'device': 'cpu', 'active_job': self.active, 'detail': self.model_error}
+                'device': self.frontend_device, 'frontend_device': self.frontend_device,
+                'behavior_device': self.behavior_device,
+                'active_job': self.active, 'detail': self.model_error}
 
     def get(self, job_id):
         with self.lock:
@@ -254,7 +259,8 @@ class JobManager:
                     '--pose-model', str(self.model_dir / config['pose_model']),
                     '--stgcn', str(self.model_dir / config['stgcn']), '--lstm', str(self.model_dir / config['lstm']),
                     '--stats', str(self.model_dir / config['stats']), '--normalization', config['normalization'],
-                    '--behavior-device', 'cpu', '--presentation', '--save-keypoints']
+                    '--device', self.frontend_device, '--behavior-device', self.behavior_device,
+                    '--presentation', '--save-keypoints']
             if config.get('pose_filter'):
                 args.append('--pose-filter')
             pipeline_args = arguments(args)

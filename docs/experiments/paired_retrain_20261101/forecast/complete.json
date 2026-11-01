@@ -1,0 +1,19 @@
+{
+  "epochs": 125,
+  "seconds": 399.8587206000001,
+  "initial_state_sha256": "28b061688cdfd3f4db5ef95ae24dcf37e6e65f7d54690f48d343a331f694f425",
+  "selection": "maximum validation Macro-F1, tie-break minimum unweighted validation cross-entropy",
+  "class_counts": [
+    241.0,
+    91.0,
+    1316.0
+  ],
+  "class_weights": [
+    2.2793915271759033,
+    6.036630153656006,
+    0.41742655634880066
+  ],
+  "lr": 0.001,
+  "batch_size": 128,
+  "seed": 2026
+}

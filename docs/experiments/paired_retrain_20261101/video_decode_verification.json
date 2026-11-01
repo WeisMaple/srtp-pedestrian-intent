@@ -1,0 +1,12 @@
+{
+  "observed": {
+    "decoded_frames": 150,
+    "height": 1080,
+    "width": 1920
+  },
+  "forecast": {
+    "decoded_frames": 150,
+    "height": 1080,
+    "width": 1920
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "protocol": "paired retrained branches; video-disjoint test",
+  "test_videos": 126,
+  "test_samples": 1506,
+  "eligible": 4189,
+  "coverage": 0.3595130102649797,
+  "classes": [
+    230,
+    43,
+    1233
+  ],
+  "branches": {
+    "observed": {
+      "samples": 1506,
+      "correct": 1161,
+      "accuracy": 0.7709163346613546,
+      "macro_precision": 0.45336362826338766,
+      "macro_recall": 0.5390423066819633,
+      "macro_f1": 0.44849186811294767,
+      "weighted_precision": 0.755245666181394,
+      "weighted_recall": 0.7709163346613546,
+      "weighted_f1": 0.7534355975000461,
+      "micro_precision": 0.7709163346613546,
+      "micro_recall": 0.7709163346613546,
+      "micro_f1": 0.7709163346613546,
+      "balanced_accuracy": 0.5390423066819633,
+      "confusion_matrix": [
+        [
+          26,
+          40,
+          164
+        ],
+        [
+          0,
+          26,
+          17
+        ],
+        [
+          61,
+          63,
+          1109
+        ]
+      ],
+      "per_class": [
+        {
+          "label": 0,
+          "name": "irrelevant",
+          "support": 230,
+          "precision": 0.2988505747126437,
+          "recall": 0.11304347826086956,
+          "f1": 0.1640378548895899
+        },
+        {
+          "label": 1,
+          "name": "not_crossing",
+          "support": 43,
+          "precision": 0.20155038759689922,
+          "recall": 0.6046511627906976,
+          "f1": 0.3023255813953488
+        },
+        {
+          "label": 2,
+          "name": "crossing",
+          "support": 1233,
+          "precision": 0.8596899224806202,
+          "recall": 0.8994322789943228,
+          "f1": 0.8791121680539041
+        }
+      ],
+      "behavior_gpu_latency_ms": {
+        "n": 192,
+        "median": 4.314100000044618,
+        "p95": 4.846784999989495,
+        "mean": 4.393532291669426
+      }
+    },
+    "forecast": {
+      "samples": 1506,
+      "correct": 1100,
+      "accuracy": 0.7304116865869854,
+      "macro_precision": 0.4018318636987628,
+      "macro_recall": 0.3918274580810653,
+      "macro_f1": 0.36398682321987014,
+      "weighted_precision": 0.7401445289695291,
+      "weighted_recall": 0.7304116865869854,
+      "weighted_f1": 0.725840058394926,
+      "micro_precision": 0.7304116865869854,
+      "micro_recall": 0.7304116865869854,
+      "micro_f1": 0.7304116865869854,
+      "balanced_accuracy": 0.3918274580810653,
+      "confusion_matrix": [
+        [
+          23,
+          29,
+          178
+        ],
+        [
+          16,
+          9,
+          18
+        ],
+        [
+          36,
+          129,
+          1068
+        ]
+      ],
+      "per_class": [
+        {
+          "label": 0,
+          "name": "irrelevant",
+          "support": 230,
+          "precision": 0.30666666666666664,
+          "recall": 0.1,
+          "f1": 0.15081967213114755
+        },
+        {
+          "label": 1,
+          "name": "not_crossing",
+          "support": 43,
+          "precision": 0.05389221556886228,
+          "recall": 0.20930232558139536,
+          "f1": 0.08571428571428572
+        },
+        {
+          "label": 2,
+          "name": "crossing",
+          "support": 1233,
+          "precision": 0.8449367088607594,
+          "recall": 0.8661800486618005,
+          "f1": 0.8554265118141771
+        }
+      ],
+      "behavior_gpu_latency_ms": {
+        "n": 192,
+        "median": 120.74519999998756,
+        "p95": 130.8831399999633,
+        "mean": 122.41165416666531
+      }
+    }
+  },
+  "delta": {
+    "accuracy": -0.040504648074369154,
+    "macro_f1": -0.08450504489307753
+  },
+  "uncertainty": {
+    "unit": "video",
+    "replicates": 2000,
+    "method": "paired percentile bootstrap over all test videos",
+    "accuracy_delta_95ci": [
+      -0.09195254533319464,
+      0.025513521895580624
+    ],
+    "macro_f1_delta_95ci": [
+      -0.1886114131927875,
+      0.06211759381427599
+    ]
+  },
+  "scope": "test videos disjoint from current fit; previously used in earlier project development; fixed seed 2026"
+}

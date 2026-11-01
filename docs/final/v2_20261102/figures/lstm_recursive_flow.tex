@@ -1,0 +1,21 @@
+\documentclass[tikz,border=2mm]{standalone}
+\usepackage{fontspec,xeCJK}
+\setmainfont{Times New Roman}\setCJKmainfont{SimSun}
+\usetikzlibrary{arrows.meta,shapes.geometric,positioning}
+\tikzset{box/.style={draw,text width=6.5cm,minimum width=7cm,minimum height=.7cm,align=center,inner sep=4pt},terminal/.style={box,rounded corners=8pt},arrow/.style={-{Stealth[length=2.2mm]},line width=.7pt}}
+\begin{document}
+\begin{tikzpicture}[node distance=3mm,font=\fontsize{11}{14}\selectfont]
+\node[terminal] (start){输入50步历史骨架，轮数置零};
+\node[box,below=of start] (norm){以末帧为参照，标准化历史骨架};
+\node[box,below=of norm] (lstm){LSTM预测后续10步变化量};
+\node[box,below=of lstm] (denorm){乘以固定标准差，加回参照骨架};
+\node[box,below=of denorm] (update){移除最早10步，追加预测骨架};
+\node[box,below=of update] (count){保存本轮输出，轮数加一};
+\node[diamond,draw,aspect=3,inner sep=3pt,below=of count] (test){已完成5轮？};
+\node[terminal,below=of test] (end){拼接输出50步预测骨架};
+\foreach \a/\b in {start/norm,norm/lstm,lstm/denorm,denorm/update,update/count,count/test}{\draw[arrow] (\a)--(\b);}
+\draw[arrow] (test)--node[right]{是}(end);
+\coordinate (return) at ([xshift=8mm]norm.east);
+\draw[arrow] (test.east)--(return|-test.east) node[midway,above]{否} |- (norm.east);
+\end{tikzpicture}
+\end{document}

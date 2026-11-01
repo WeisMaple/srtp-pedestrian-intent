@@ -41,6 +41,7 @@ class WebTests(unittest.TestCase):
         self.release = threading.Event()
 
         def runner(args, on_event=None, cancel=None):
+            self.pipeline_args = args
             self.started.set()
             while not self.release.wait(0.01):
                 if cancel.is_set():
@@ -81,6 +82,27 @@ class WebTests(unittest.TestCase):
                 return state
             time.sleep(0.02)
         self.fail('Task did not finish: ' + str(state))
+
+    def test_health_reports_cuda_and_cpu_configurations_without_loading_models(self):
+        for available, expected in ((True, 'cuda:0'), (False, 'cpu')):
+            with self.subTest(cuda=available), patch('torch.cuda.is_available', return_value=available):
+                manager = JobManager(self.root / ('gpu' if available else 'cpu'))
+                try:
+                    health = manager.health()
+                    self.assertEqual(health['device'], expected)
+                    self.assertEqual(health['frontend_device'], expected)
+                    self.assertEqual(health['behavior_device'], 'cpu')
+                finally:
+                    manager.close()
+
+    def test_reported_devices_are_passed_to_the_actual_pipeline(self):
+        health = self.client.get('/api/health').json()
+        job = self.upload()
+        self.release.set()
+        self.assertEqual(self.client.post('/api/jobs/' + job['id'] + '/start').status_code, 200)
+        self.assertEqual(self.wait_status(job['id'], {'completed', 'failed'})['status'], 'completed')
+        self.assertEqual(self.pipeline_args.device, health['frontend_device'])
+        self.assertEqual(self.pipeline_args.behavior_device, health['behavior_device'])
 
     def test_invalid_empty_and_oversized_uploads_are_rejected(self):
         for name, content in [('bad.exe', b'payload'), ('empty.mp4', b''), ('bad.mp4', b'not video')]:
