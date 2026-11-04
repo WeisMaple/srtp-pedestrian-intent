@@ -229,10 +229,15 @@ class LiveTrace:
             for handle in self.yolo_handles:
                 handle.remove()
             self.yolo_handles.clear()
+            previous_count = self.yolo_module_count
             self.yolo_module = network
             self.yolo_module_count = len(network.model)
+            if self.detail_frame and not previous_count and self.yolo_module_count:
+                self.detail_modules = {(self.detail_index * 4 + i) % self.yolo_module_count
+                                       for i in range(4)}
             fused = bool(getattr(network, 'is_fused', lambda: False)())
-            self.arithmetic.attach_yolo(network, fused, guard=lambda: bool(self.predictor.done_warmup))
+            if self.detail:
+                self.arithmetic.attach_yolo(network, fused, guard=lambda: bool(self.predictor.done_warmup))
             for index, module in enumerate(network.model):
                 def capture(inputs, output, duration, index=index, module=module):
                     tensor = first_tensor(output)

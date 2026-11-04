@@ -25,20 +25,34 @@ def dense_conv_row(module_index, selection, value, output, fused):
     padded = F.pad(value, (px, px, py, py))
     patch = padded[0, :, y * sy:y * sy + dy * (kh - 1) + 1:dy,
                    x * sx:x * sx + dx * (kw - 1) + 1:dx]
+    height, width = value.shape[-2], value.shape[-1]
+    padding = []
+    for _channel in range(int(conv.in_channels)):
+        for ky in range(kh):
+            for kx in range(kw):
+                iy = y * sy - py + ky * dy
+                ix = x * sx - px + kx * dx
+                padding.append(iy < 0 or iy >= height or ix < 0 or ix >= width)
     weights = conv.weight[0]
     raw = output[0, 0, y, x]
     activation = selection.activation
-    if activation == 'batch_norm_silu':
+    if activation in ('batch_norm', 'batch_norm_silu'):
         bn = selection.parent.bn
         channel = 0
         activated = (raw - bn.running_mean[channel]) / torch.sqrt(bn.running_var[channel] + bn.eps)
         activated = activated * bn.weight[channel] + bn.bias[channel]
-        activated = F.silu(activated)
+        if activation == 'batch_norm_silu':
+            activated = F.silu(activated)
     elif activation == 'silu':
         activated = F.silu(raw)
     else:
         activated = raw
-    bias = float(conv.bias[0]) if conv.bias is not None else 0.
+    if conv.bias is None:
+        bias = 0.
+    elif not torch.isfinite(conv.bias[0]):
+        bias = None
+    else:
+        bias = round(float(conv.bias[0]), 5)
     return {
         'id': 'yolo.conv.%d' % module_index, 'stage': 'yolo',
         'module': int(module_index), 'fused': bool(fused),
@@ -48,10 +62,10 @@ def dense_conv_row(module_index, selection, value, output, fused):
         'term_axes': ['in_channel', 'kernel_y', 'kernel_x'],
         'term_shape': [int(conv.in_channels), int(kh), int(kw)],
         'inputs': _rounded(patch), 'weights': _rounded(weights), 'bias': bias,
-        'actual': None if not torch.isfinite(activated) else float(activated),
+        'actual': None if not torch.isfinite(activated) else round(float(activated), 5),
         'activation': activation, 'formula': 'y = activation(Σc Σky Σkx(x × W) + b)',
         'input_indices': [], 'connected': [True] * int(patch.numel()),
-        'padding': [False] * int(patch.numel()),
+        'padding': padding,
         'metadata': {'complete_sum': True, 'representative': True, 'detail': True,
                      'module_path': selection.path, 'target_indices': [0, y, x],
                      'input_shape': list(value.shape), 'stride': list(conv.stride),
