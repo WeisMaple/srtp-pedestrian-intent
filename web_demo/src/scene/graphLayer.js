@@ -5,6 +5,7 @@ import { COLORS, lineMaterial, pointMaterial } from './materials.js';
 export function buildGraphLayer() {
     const group = new THREE.Group();
     const points = new THREE.Points(new THREE.BufferGeometry(), pointMaterial(COLORS.focus, 0.11));
+    points.userData.kind = 'joint';
     const bones = new THREE.LineSegments(new THREE.BufferGeometry(), lineMaterial(COLORS.focus, 0.6));
     group.add(points, bones); return { group, points, bones };
 }

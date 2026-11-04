@@ -63,10 +63,12 @@ export function createCorridorScene(host, { onPick, onError } = {}) {
 
     const feature = buildFeatureLayer(24);
     feature.group.position.set(...BAYS[1].position).add(V(0, 1.5, 0)); root.add(feature.group);
+    feature.points.forEach(mesh => pickables.push(mesh));
     const memory = buildMemoryLayer();
     memory.group.position.set(...BAYS[3].position).add(V(0, 1.2, 0)); root.add(memory.group);
     const graph = buildGraphLayer();
     graph.group.position.set(...BAYS[4].position).add(V(0, 1.4, 0)); root.add(graph.group);
+    pickables.push(graph.points);
     const intent = buildIntentLayer(['其他', '不过街', '过街']);
     intent.group.position.set(...BAYS[5].position).add(V(0, 1, 0)); root.add(intent.group);
 
@@ -114,12 +116,23 @@ export function createCorridorScene(host, { onPick, onError } = {}) {
         if (motion) return;
         const rect = renderer.domElement.getBoundingClientRect();
         const raycaster = new THREE.Raycaster();
+        raycaster.params.Points.threshold = 0.3;
+        raycaster.params.Line.threshold = 0.3;
         raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
             -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
-        const hit = raycaster.intersectObjects(pickables, false)[0];
-        if (!hit) return;
-        const bay = hit.object.parent?.userData?.bay;
-        if (bay) onPick?.({ kind: 'bay', step: bay.step });
+        for (const hit of raycaster.intersectObjects(pickables, false)) {
+            const module = hit.object.userData?.module;
+            if (Number.isInteger(module)) {
+                if (step === 2) onPick?.({ kind: 'module', module });
+                return;
+            }
+            if (hit.object.userData?.kind === 'joint') {
+                if (step === 5 && Number.isInteger(hit.index)) onPick?.({ kind: 'joint', joint: hit.index });
+                return;
+            }
+            const bay = hit.object.parent?.userData?.bay;
+            if (bay) { onPick?.({ kind: 'bay', step: bay.step }); return; }
+        }
     }
     function contextLost(event) {
         event.preventDefault(); onError?.('三维渲染上下文已中断，数值台仍可使用。');

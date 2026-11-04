@@ -23,8 +23,8 @@ export default function CorridorStage({ step, track, live, trackId, structure, o
     useEffect(() => { engine.current?.setTrack(track); }, [track]);
     useEffect(() => {
         if (!live || !engine.current) return;
-        engine.current.setLive(liveLayerModel(live, trackId, structure));
-    }, [live, trackId, structure]);
+        engine.current.setLive(liveLayerModel(live, trackId, structure, track));
+    }, [live, trackId, structure, track]);
     if (error) return <div className="corridor-fallback" role="alert">
         <strong>三维画布暂不可用</strong><p>{error}</p>{children}
     </div>;

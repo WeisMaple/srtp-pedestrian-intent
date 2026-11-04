@@ -20,3 +20,5 @@
 .lens-panel header strong { font-size: 14px; }
 .lens-panel header button { background: none; border: 0; color: var(--text-2); font-size: 20px; }
 .lens-equation { padding: 8px 12px; color: var(--current); font-size: 12px; }
+.lens-summary { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0 12px 8px; font-size: 11px; color: var(--text-2); }
+.lens-summary b { color: var(--text-1); font-weight: 500; }

@@ -22,13 +22,19 @@ export function uploadHint(file, modelsReady) {
  */
 const sameTrack = (left, right) => left != null && right != null && String(left) === String(right);
 
-export function latestCalculation(snapshot, step, structure, moduleIndex, blockIndex, trackId = null) {
+export function latestCalculation(snapshot, step, structure, moduleIndex, blockIndex, trackId = null, cachedRows = []) {
     if (!snapshot || !structure) return null;
-    const rows = Object.values(snapshot.nodes || {}).flatMap(node => node.calculations || []);
+    const rows = [...cachedRows,
+        ...Object.values(snapshot.nodes || {}).flatMap(node => node.calculations || [])];
     const onTrack = row => trackId == null || sameTrack(row.track_id, trackId);
     if (step === 2) {
         return snapshot.details?.yolo?.[moduleIndex]
             || rows.find(row => row.stage === 'yolo' && row.module === moduleIndex) || null;
+    }
+    if (step === 4) {
+        return rows.find(row => row.stage === 'decoder' && onTrack(row))
+            || rows.find(row => row.stage === 'normalization' && onTrack(row))
+            || rows.find(row => row.stage === 'denormalization' && onTrack(row)) || null;
     }
     if (step === 5) {
         const ordinal = blockIndex - 1;

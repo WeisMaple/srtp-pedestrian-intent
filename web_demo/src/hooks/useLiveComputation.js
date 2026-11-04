@@ -89,6 +89,6 @@ export function useLiveComputation(job, enabled = true) {
     const retry = useCallback(() => setRevision(value => value + 1), []);
 
     return { snapshot: state.snapshot, latestEvent: state.latestEvent, events: state.events,
-        connection: state.connection, error: state.error, frozen: state.frozen,
+        calculations: state.calculations, connection: state.connection, error: state.error, frozen: state.frozen,
         freeze, toggleFreeze, resume, retry, receivedAt: state.receivedAt, latestSeq: state.latestSeq };
 }

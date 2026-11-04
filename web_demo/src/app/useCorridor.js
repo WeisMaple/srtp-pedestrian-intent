@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { STEPS, beatsForStep, stepReady } from '../domain/timeline.js';
 
 export function createCorridorState() {
-    return { step: 1, beat: 0, paused: false, following: true, selectedTrackId: null,
+    return { step: 1, beat: 0, paused: false, following: true, frozen: false, selectedTrackId: null,
         module: 0, block: 1, termIndex: 0, lens: null, ready: true };
 }
 
@@ -10,8 +10,8 @@ export function corridorReducer(state, action) {
     switch (action.type) {
         case 'step': return { ...state, step: action.step, beat: 0, paused: true, following: false, lens: null };
         case 'beat': return { ...state, beat: action.beat };
-        case 'pause': return { ...state, paused: true, following: false };
-        case 'play': return { ...state, paused: false, following: true };
+        case 'pause': return { ...state, paused: true, following: false, frozen: true };
+        case 'play': return { ...state, paused: false, following: true, frozen: false };
         case 'ready': return { ...state, ready: Boolean(action.ready) };
         case 'track': return { ...state, selectedTrackId: action.trackId, termIndex: 0 };
         case 'module': return { ...state, module: action.module, termIndex: 0 };

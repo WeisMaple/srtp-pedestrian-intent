@@ -1,7 +1,7 @@
 export default function TransportDeck({ state, actions, currentBeat, totalBeats, stepTitle }) {
     return <div className="transport-deck">
-        <button className="transport-play" aria-label={state.paused ? '播放讲解' : '暂停讲解'}
-            onClick={actions.togglePause}>{state.paused ? '▶' : 'Ⅱ'}</button>
+        <button className="transport-play" aria-label={state.paused ? '播放并跟随最新数值' : '暂停并冻结数值'}
+            aria-pressed={state.frozen} onClick={actions.togglePause}>{state.paused ? '▶' : 'Ⅱ'}</button>
         <div className="transport-progress">
             <div><strong>{stepTitle}</strong><span className="mono">{currentBeat + 1} / {totalBeats}</span></div>
             <input aria-label="讲解进度" type="range" min="0" max={Math.max(0, totalBeats - 1)}

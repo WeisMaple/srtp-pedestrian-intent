@@ -25,3 +25,12 @@ test('missing probabilities stay null instead of zero', () => {
     const model = liveLayerModel({ ...snapshot, tracks: [{ track_id: 2 }] }, 2, structure);
     assert.equal(model.intent.probabilities, null);
 });
+
+test('a live frame without tracks uses the selected job track, while live tracks win', () => {
+    const fallback = { track_id: 2, keypoints: [[1, 2, 0.9]], probabilities: [0.1, 0.2, 0.7], class_id: 2 };
+    const model = liveLayerModel({ ...snapshot, tracks: [] }, 2, structure, fallback);
+    assert.equal(model.track, fallback);
+    assert.deepEqual(model.intent.probabilities, [0.1, 0.2, 0.7]);
+    assert.equal(liveLayerModel(snapshot, 2, structure, fallback).track, snapshot.tracks[0]);
+    assert.equal(liveLayerModel(snapshot, 9, structure, fallback).track, null);
+});

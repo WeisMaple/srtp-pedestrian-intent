@@ -33,6 +33,7 @@
 .step-nav small { display: block; font: 9px var(--font-mono); color: var(--muted); letter-spacing: .1em; }
 .transport-deck { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line-dim); background: rgba(6,18,37,.8); }
 .transport-play { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--focus); background: var(--focus-soft); color: var(--focus); }
+.transport-play[aria-pressed="true"], .transport-follow[aria-pressed="false"] { border-color: var(--current); color: var(--current); }
 .transport-progress { flex: 1; display: grid; gap: 4px; }
 .transport-progress > div { display: flex; justify-content: space-between; font-size: 12px; }
 .transport-progress input { width: 100%; accent-color: var(--focus); }

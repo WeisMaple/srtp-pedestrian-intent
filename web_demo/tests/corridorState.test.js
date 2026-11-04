@@ -20,5 +20,20 @@ test('narration advances only when the step is ready', () => {
 test('pause freezes all cursor actions that advance time', () => {
     const state = corridorReducer(createCorridorState(), { type: 'pause' });
     assert.equal(state.paused, true);
+    assert.equal(state.frozen, true);
     assert.equal(corridorReducer(state, { type: 'next' }).beat, state.beat);
+});
+
+test('step navigation pauses narration without freezing live values', () => {
+    const state = corridorReducer(createCorridorState(), { type: 'step', step: 5 });
+    assert.equal(state.paused, true);
+    assert.equal(state.frozen, false);
+});
+
+test('follow latest clears the freeze and resumes live values', () => {
+    const paused = corridorReducer(createCorridorState(), { type: 'pause' });
+    const resumed = corridorReducer(paused, { type: 'play' });
+    assert.equal(resumed.paused, false);
+    assert.equal(resumed.following, true);
+    assert.equal(resumed.frozen, false);
 });

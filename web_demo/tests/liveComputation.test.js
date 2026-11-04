@@ -184,6 +184,42 @@ test('reduction carries snapshot details and merges same-frame computation rows'
     assert.equal(reduceLiveEvent(state, 'computation', event(3, 4, 'pipeline.frame'), 1200).snapshot.details.yolo[4].id, 'yolo.conv.4');
 });
 
+test('representative calculations persist across frame resets and replace by id', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'computation', event(1, 4, 'flow.lstm.decoder', {
+        calculations: [{ id: 'lstm.decoder.round1.track7', stage: 'decoder', track_id: 7, actual: 0.5 }],
+    }), 1000);
+    state = reduceLiveEvent(state, 'computation', event(2, 5, 'pipeline.frame'), 1100);
+    assert.deepEqual(Object.keys(state.snapshot.nodes), ['pipeline.frame']);
+    assert.equal(state.calculations.length, 1);
+    assert.equal(state.calculations[0].id, 'lstm.decoder.round1.track7');
+    state = reduceLiveEvent(state, 'computation', event(3, 6, 'flow.lstm.decoder', {
+        calculations: [{ id: 'lstm.decoder.round1.track7', stage: 'decoder', track_id: 7, actual: 0.75 }],
+    }), 1200);
+    assert.equal(state.calculations.length, 1);
+    assert.equal(state.calculations[0].actual, 0.75);
+});
+
+test('freeze holds calculation rows while later frames keep ingesting them', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'computation', event(1, 4, 'flow.stgcn.classifier.track7', {
+        calculations: [{ id: 'stgcn.classifier.track7', stage: 'classifier', track_id: 7, actual: 1 }],
+    }), 1000);
+    state = setLiveFrozen(state, true);
+    state = reduceLiveEvent(state, 'computation', event(2, 5, 'flow.stgcn.classifier.track7', {
+        calculations: [{ id: 'stgcn.classifier.track7', stage: 'classifier', track_id: 7, actual: 2 }],
+    }), 1100);
+    const held = visibleLiveState(state);
+    assert.equal(held.calculations[0].actual, 1);
+    assert.equal(state.calculations[0].actual, 2);
+});
+
+test('gap recovery clears representative calculations so old values are not reused', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'computation', event(1, 4, 'flow.lstm.decoder', {
+        calculations: [{ id: 'lstm.decoder.round1.track7', stage: 'decoder', track_id: 7 }],
+    }), 1000);
+    state = reduceLiveEvent(state, 'gap', { seq: 5, job_id: 'job-a', reset: true }, 1100);
+    assert.deepEqual(state.calculations, []);
+});
+
 test('freeze holds detail rows while later frames keep merging into the live state', () => {
     let state = reduceLiveEvent(createLiveState('job-a'), 'snapshot', {
         seq: 1, job_id: 'job-a', frame: 3, nodes: {},

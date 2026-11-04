@@ -1,12 +1,25 @@
 import { mergeDetail } from './domain/model.js';
 
 const ACTIVITY_LIMIT = 60;
+const CALCULATION_LIMIT = 512;
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 export function createLiveState(jobId = null) {
-    return { jobId, snapshot: null, latestEvent: null, events: [], latestSeq: -1,
+    return { jobId, snapshot: null, latestEvent: null, events: [], calculations: [], latestSeq: -1,
         receivedAt: null, connection: 'idle', error: '', frozen: false, held: null,
         awaitingSnapshot: false, details: { yolo: {}, stgcn: {} } };
+}
+
+/** Keep the newest real calculation for each id across frame resets. */
+export function mergeCalculations(existing = [], additions = []) {
+    if (!Array.isArray(additions) || !additions.length) return existing;
+    const ids = new Set(additions.map(row => row?.id).filter(Boolean));
+    const kept = existing.filter(row => !ids.has(row?.id));
+    return [...kept, ...additions].slice(-CALCULATION_LIMIT);
+}
+
+function snapshotCalculations(payload) {
+    return Object.values(payload?.nodes || {}).flatMap(node => node?.calculations || []);
 }
 
 function appendActivity(events, event) {
@@ -35,9 +48,10 @@ export function reduceLiveEvent(state, type, payload, receivedAt = Date.now()) {
 
     const row = { ...payload, type, received_at_ms: receivedAt };
     const next = { ...state, latestSeq: seq, receivedAt, error: '',
-        connection: 'connected', events: appendActivity(state.events, row) };
+        connection: 'connected', events: appendActivity(state.events, row),
+        calculations: mergeCalculations(state.calculations, payload.calculations) };
     if (type === 'gap') {
-        return { ...next, snapshot: null, latestEvent: null, awaitingSnapshot: true };
+        return { ...next, snapshot: null, latestEvent: null, calculations: [], awaitingSnapshot: true };
     }
     if (type === 'snapshot') {
         const nodes = currentNodes(payload.nodes, payload.frame, state.jobId, receivedAt);
@@ -45,7 +59,8 @@ export function reduceLiveEvent(state, type, payload, receivedAt = Date.now()) {
             !latest || node.seq > latest.seq ? node : latest, null);
         return { ...next, snapshot: { ...payload, nodes, tracks: payload.tracks || [],
                 details: payload.details || { yolo: {}, stgcn: {} } },
-            latestEvent, awaitingSnapshot: false };
+            latestEvent, awaitingSnapshot: false,
+            calculations: mergeCalculations(next.calculations, snapshotCalculations(payload)) };
     }
     if (type === 'terminal') {
         return { ...next, connection: 'complete', snapshot: state.snapshot ? {
@@ -75,7 +90,8 @@ export function setLiveFrozen(state, frozen, displayed = state) {
     if (state.frozen === frozen) return state;
     return { ...state, frozen, held: frozen ? {
         snapshot: displayed.snapshot, latestEvent: displayed.latestEvent,
-        events: displayed.events, receivedAt: displayed.receivedAt,
+        events: displayed.events, calculations: displayed.calculations,
+        receivedAt: displayed.receivedAt,
     } : null };
 }
 

@@ -1,5 +1,6 @@
-export function liveLayerModel(snapshot, trackId, structure) {
-    const track = (snapshot?.tracks || []).find(item => String(item.track_id) === String(trackId)) || null;
+export function liveLayerModel(snapshot, trackId, structure, fallbackTrack = null) {
+    const track = (snapshot?.tracks || []).find(item => String(item.track_id) === String(trackId))
+        || (String(fallbackTrack?.track_id) === String(trackId) ? fallbackTrack : null);
     const nodes = snapshot?.nodes || {};
     const features = (structure?.yoloModules || []).map(module => ({
         module: module.index,

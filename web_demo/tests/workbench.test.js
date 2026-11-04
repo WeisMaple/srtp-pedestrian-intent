@@ -38,6 +38,37 @@ test('calculation lookup stays on the selected module and block', () => {
     assert.equal(latestCalculation(snapshot, 2, null, 0, 1), null);
 });
 
+test('LSTM step prefers the decoder row and stays on the selected pedestrian', () => {
+    const structure = { yoloModules: [], stgcnBlocks: [] };
+    const snapshot = {
+        nodes: {
+            'lstm.1': { calculations: [
+                { stage: 'normalization', track_id: 4, id: 'normalize-4' },
+                { stage: 'decoder', track_id: 4, id: 'decoder-4' },
+                { stage: 'decoder', track_id: 9, id: 'decoder-9' },
+            ] },
+        },
+        details: { yolo: {}, stgcn: {} },
+    };
+    assert.equal(latestCalculation(snapshot, 4, structure, 0, 1, 4).id, 'decoder-4');
+    assert.equal(latestCalculation(snapshot, 4, structure, 0, 1, 9).id, 'decoder-9');
+    assert.equal(latestCalculation(snapshot, 4, structure, 0, 1, 7), null);
+});
+
+test('cached event calculations survive frame resets for the selected pedestrian', () => {
+    const structure = { yoloModules: [], stgcnBlocks: [] };
+    const snapshot = { nodes: { 'pipeline.frame': { calculations: [] } }, tracks: [], details: { yolo: {}, stgcn: {} } };
+    const cached = [
+        { stage: 'decoder', track_id: 2, id: 'cached-decoder-2' },
+        { stage: 'classifier', track_id: 2, id: 'cached-classifier-2' },
+        { stage: 'classifier', track_id: 5, id: 'cached-classifier-5' },
+    ];
+    assert.equal(latestCalculation(snapshot, 4, structure, 0, 1, 2, cached).id, 'cached-decoder-2');
+    assert.equal(latestCalculation(snapshot, 6, structure, 0, 1, 2, cached).id, 'cached-classifier-2');
+    assert.equal(latestCalculation(snapshot, 6, structure, 0, 1, 5, cached).id, 'cached-classifier-5');
+    assert.equal(latestCalculation(snapshot, 6, structure, 0, 1, 9, cached), null);
+});
+
 test('per-track calculations never borrow another pedestrian', () => {
     const structure = { yoloModules: [{ index: 0 }], stgcnBlocks: [{ index: 1 }] };
     const snapshot = {

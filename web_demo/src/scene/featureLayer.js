@@ -8,7 +8,8 @@ export function buildFeatureLayer(count = 24) {
         const x = (index % 8 - 3.5) * 1.5, y = 1.2 + Math.floor(index / 8) * 1.4, z = index * 0.12;
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshBasicMaterial({
             color: COLORS.focus, transparent: true, opacity: 0.06, side: THREE.DoubleSide }));
-        mesh.position.set(x, y, z); mesh.rotation.x = -Math.PI / 2; group.add(mesh);
+        mesh.position.set(x, y, z); mesh.rotation.x = -Math.PI / 2;
+        mesh.userData.module = index; group.add(mesh);
         const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.1, 0.7)),
             lineMaterial(COLORS.focus, 0.35));
         outline.position.copy(mesh.position); outline.rotation.copy(mesh.rotation); group.add(outline); points.push(mesh);

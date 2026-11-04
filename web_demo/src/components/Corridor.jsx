@@ -34,7 +34,7 @@ function StageSelectors({ state, actions, structure, live }) {
                         : <option value={state.module}>模型结构未就绪</option>}
                 </select>
             </label>
-            {modules.length > 0 && <small className="mono">详细采集 {collectedModules} / {modules.length}</small>}
+            {modules.length > 0 && <small className="mono">点击特征平面打开放大镜 · 详细采集 {collectedModules} / {modules.length}</small>}
         </div>;
     }
     if (state.step === 5) {
@@ -48,7 +48,7 @@ function StageSelectors({ state, actions, structure, live }) {
                         : <option value={state.block}>模型结构未就绪</option>}
                 </select>
             </label>
-            {blocks.length > 0 && <small className="mono">详细采集 {collectedBlocks} / {blocks.length}</small>}
+            {blocks.length > 0 && <small className="mono">点击骨架关节打开放大镜 · 详细采集 {collectedBlocks} / {blocks.length}</small>}
         </div>;
     }
     return null;
@@ -59,17 +59,26 @@ export default function Corridor({ job, live, structure, state, actions, selecte
     const beats = beatsForStep(state.step);
     const stepTitle = STEPS.find(item => item.step === state.step)?.title || '视频帧';
     const flow = calculation ? flowState(calculation, state.termIndex) : null;
+    const waitingLabel = state.step === 2 ? `等待 YOLO 模块 ${state.module} 的详细采集`
+        : state.step === 5 ? `等待 ST-GCN 第 ${state.block} 块的详细采集` : '等待该步骤的真实计算';
     return <section className="corridor-page">
         <ContextRail job={job} tracks={tracks} track={selectedTrack} onSelect={onSelectTrack} />
         <div className="corridor-main">
             <div className="corridor-stage-wrap">
                 <CorridorStage step={state.step} track={selectedTrack} live={live} trackId={selectedTrack?.track_id}
-                    structure={structure} onPick={packet => { if (packet?.kind === 'bay') actions.selectStep(packet.step); }} />
+                    structure={structure} onPick={packet => {
+                        if (packet?.kind === 'bay') actions.selectStep(packet.step);
+                        else if (packet?.kind === 'module') {
+                            actions.selectStep(2); actions.selectModule(packet.module); onSeek(0);
+                        } else if (packet?.kind === 'joint') {
+                            actions.selectStep(5); onSeek(0);
+                        }
+                    }} />
                 <div className="stage-overlay">
                     <StepNav state={state} actions={actions} />
                     <StageSelectors state={state} actions={actions} structure={structure} live={live} />
                     <LensPanel open={lensOpen} calculation={calculation} state={flow} terms={terms}
-                        filter={filter} page={page} onFilter={onFilter} onPage={onPage}
+                        waitingLabel={waitingLabel} filter={filter} page={page} onFilter={onFilter} onPage={onPage}
                         onSeek={index => { onSeek(index); actions.seekTerm(index); }} onClose={onCloseLens} />
                 </div>
             </div>

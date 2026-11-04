@@ -26,6 +26,12 @@ export default function App() {
     const tracks = live.snapshot?.tracks?.length ? live.snapshot.tracks : (jobState.job?.tracks || []);
     const selectedTrack = tracks.find(track => String(track.track_id) === String(selectedTrackId)) || tracks[0] || null;
     const { state, actions } = useCorridor({ job: jobState.job, live: live.snapshot, trackId: selectedTrack?.track_id });
+    useEffect(() => {
+        if (state.frozen) live.freeze(true);
+        else if (live.frozen) live.resume();
+        // Freeze only on the transport pause control; step navigation still follows live data.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.frozen]);
     useEffect(() => { if (selectedTrackId == null && tracks.length) setSelectedTrackId(tracks[0].track_id); }, [tracks, selectedTrackId]);
     useEffect(() => {
         const onChange = () => setPage(pageFromHash(window.location.hash));
@@ -34,8 +40,8 @@ export default function App() {
     }, []);
     const navigate = next => { window.location.hash = hashForPage(next); setPage(pageFromHash(hashForPage(next))); };
     const raw = useMemo(() => latestCalculation(live.snapshot, state.step, model.structure,
-        state.module, state.block, selectedTrack?.track_id),
-        [live.snapshot, state.step, state.module, state.block, model.structure, selectedTrack?.track_id]);
+        state.module, state.block, selectedTrack?.track_id, live.calculations),
+        [live.snapshot, live.calculations, state.step, state.module, state.block, model.structure, selectedTrack?.track_id]);
     const calculation = useMemo(() => normalizeCalculation(raw), [raw]);
     const terms = useMemo(() => calculation ? filterTerms(calculation.terms, filter) : [], [calculation, filter]);
     const status = { ready: Boolean(jobState.health?.models_ready), label: jobState.health?.model_name || '本地模型' };
