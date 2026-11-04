@@ -145,7 +145,9 @@ def run(a, on_event=None, cancel=None, on_computation=None):
     try:
         if on_computation is not None:
             from .live_trace import LiveTrace
-            live = LiveTrace(on_computation)
+            live = LiveTrace(on_computation,
+                             detail=bool(getattr(a, 'live_detail', False)),
+                             detail_interval=1.0)
             live.attach_yolo(front.model)
             live.attach_behavior(behavior)
         if not cap.isOpened():raise RuntimeError('Cannot open input video')

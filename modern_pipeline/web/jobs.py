@@ -260,6 +260,7 @@ class JobManager:
                 args.append('--pose-filter')
             pipeline_args = arguments(args)
             pipeline_args.live_telemetry = True
+            pipeline_args.live_detail = True
             metrics = self.run_pipeline(pipeline_args, on_event=lambda event: self._observe(job, event), cancel=job.cancel)
             if job.cancel.is_set():
                 raise PredictionCancelled('Analysis cancelled')
