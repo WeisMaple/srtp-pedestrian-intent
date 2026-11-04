@@ -1,0 +1,22 @@
+.numeric-ledger { border-top: 1px solid var(--line-dim); padding: 12px 16px; overflow: auto; max-height: 34vh; }
+.ledger-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; }
+.ledger-head span { font: 11px var(--font-mono); color: var(--muted); letter-spacing: .12em; }
+.ledger-head h3 { margin: 2px 0 0; font-size: 16px; font-weight: 500; }
+.ledger-head p { margin: 0; color: var(--text-2); font-size: 11px; }
+.ledger-tools { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0; }
+.ledger-tools button { border: 1px solid var(--line-soft); background: none; color: var(--text-2); padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+.ledger-tools button[aria-pressed="true"] { color: var(--current); border-color: var(--current); }
+.ledger-table { display: grid; gap: 2px; }
+.ledger-row { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr .9fr; gap: 8px; align-items: center; text-align: left; border: 0; background: rgba(232,241,255,.03); color: var(--text-1); padding: 5px 8px; font: 12px var(--font-mono); }
+.ledger-row.head { color: var(--muted); background: none; font-size: 10px; letter-spacing: .08em; }
+.ledger-row:not(.head):hover { background: var(--focus-soft); }
+.ledger-row.current { border-left: 2px solid var(--current); }
+.ledger-row.accumulated { color: var(--focus); }
+.ledger-row.disconnected, .ledger-row.unrecorded, .ledger-row.padding { color: var(--muted); }
+.ledger-empty { padding: 16px; color: var(--muted); }
+.lens-panel { position: absolute; right: 16px; bottom: 16px; width: min(560px, 46vw); max-height: 54vh; z-index: 10; overflow: hidden; }
+.lens-panel header { display: flex; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line-dim); }
+.lens-panel header span { display: block; font: 10px var(--font-mono); color: var(--muted); letter-spacing: .12em; }
+.lens-panel header strong { font-size: 14px; }
+.lens-panel header button { background: none; border: 0; color: var(--text-2); font-size: 20px; }
+.lens-equation { padding: 8px 12px; color: var(--current); font-size: 12px; }
