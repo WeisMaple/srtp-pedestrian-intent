@@ -468,7 +468,7 @@ test('dense convolution expands every term and accumulates completely', () => {
 test('cursor phases cover terms, bias, activation and result', () => {
     const calculation = normalizeCalculation({ ...dense, actual: 24 });
     assert.equal(flowState(calculation, 0).phaseName, 'input');
-    assert.equal(flowState(calculation, 0.8).phaseName, 'accumulated');
+    assert.equal(flowState(calculation, 0.9).phaseName, 'accumulated');
     assert.equal(flowState(calculation, 2).phaseName, 'bias');
     assert.equal(flowState(calculation, 3).phaseName, 'activation');
     assert.equal(flowState(calculation, 4).phaseName, 'result');

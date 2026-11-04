@@ -443,8 +443,8 @@ class LiveDetailConvTests(unittest.TestCase):
         yolo, runner, callbacks = runner_for([block])
         events = []
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
-        trace.begin_frame(1, 0.0)
         attach(trace, yolo, runner, callbacks)
+        trace.begin_frame(1, 0.0)
         value = torch.arange(3 * 12 * 12).reshape(1, 3, 12, 12).float() / 100
         expected = block(value)
         trace.close()
