@@ -35,6 +35,7 @@ class LiveArithmeticTests(unittest.TestCase):
         events = []
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
+        trace.detail_index = 1  # the next frame is block 0's boundary subframe
         trace.begin_frame(88, 2.9)
         trace.begin_behavior([8, 2, 91, 17][:len(poses)], poses)
         try:

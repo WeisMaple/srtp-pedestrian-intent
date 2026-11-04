@@ -120,7 +120,7 @@ class LiveDetailConvTests(unittest.TestCase):
         self.assertTrue(trace.begin_frame(0, 0.0))
         self.assertEqual(trace.detail_modules, set())
         attach(trace, yolo, runner, callbacks)
-        self.assertEqual(trace.detail_modules, {4, 5, 6, 7})
+        self.assertEqual(trace.detail_modules, {0, 1, 2, 3})
         seen = set(trace.detail_modules)
         for step in range(1, 12):
             self.assertTrue(trace.begin_frame(step, float(step)))

@@ -46,7 +46,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         self.assertAlmostEqual(total, calculation['actual'],
                                delta=1e-4 * max(1., abs(total)), msg=calculation['id'])
 
-    def test_two_detail_cycles_cover_yolo_modules_blocks_and_rotating_boundaries(self):
+    def test_three_block_cycles_cover_yolo_modules_and_rotate_deep_boundaries(self):
         predictor = self.predictor()
         rng = np.random.default_rng(23)
         poses = rng.normal(size=(3, 50, 17, 3)).astype(np.float32)
@@ -64,14 +64,19 @@ class LiveDetailGraphTests(unittest.TestCase):
         trace.attach_yolo(yolo)
         callbacks['on_predict_start'][0](runner)
         seen_yolo = set()
+        frame_meta = {}
         try:
-            for step in range(20):
+            for step in range(60):
                 trace.begin_frame(100 + step, step)
-                if trace.detail_index % 2:
-                    self.assertEqual(len(trace.detail_modules), 4)
-                else:
+                detail_index = trace.detail_index
+                self.assertEqual(trace.detail_block, ((detail_index - 1) // 2) % 10)
+                if trace.detail_boundary:
                     self.assertEqual(trace.detail_modules, set())
+                else:
+                    self.assertEqual(len(trace.detail_modules), 4)
                 seen_yolo.update(trace.detail_modules)
+                frame_meta[100 + step] = (detail_index, trace.detail_block,
+                                          trace.detail_boundary)
                 trace.begin_behavior([8, 2, 91], poses)
                 result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
                 trace.end_frame([{'track_id': track, 'prediction_updated': True,
@@ -79,11 +84,13 @@ class LiveDetailGraphTests(unittest.TestCase):
                                  for track, probability in zip([8, 2, 91], result['probabilities'])])
         finally:
             trace.close()
+        # Three 20-frame block cycles exercise all ten blocks six times each.
+        self.assertEqual(len(frame_meta), 60)
         # Six odd detail frames cover the 24 scheduled modules.
         self.assertEqual(seen_yolo, set(range(24)))
         detail_events = [event for event in events
                          if event.get('detail') and 'detail_block' in event]
-        self.assertEqual({event['frame'] for event in detail_events}, set(range(100, 120)))
+        self.assertEqual({event['frame'] for event in detail_events}, set(range(100, 160)))
         self.assertEqual({event['detail_block'] for event in detail_events}, set(range(10)))
         detail_rows = [(event['frame'], c) for event in events
                        for c in event.get('calculations', [])
@@ -94,39 +101,47 @@ class LiveDetailGraphTests(unittest.TestCase):
         by_frame = defaultdict(list)
         for frame, row in detail_rows:
             by_frame[frame].append(row)
-        tracks = {8, 2, 91}
-        expected_boundary = {
-            100: tracks, 101: tracks, 102: tracks, 103: tracks,
-            104: set(), 105: tracks, 106: set(), 107: {8, 2},
-            108: set(), 109: {2, 91},
-            110: tracks, 111: tracks, 112: tracks, 113: tracks,
-            114: set(), 115: tracks, 116: set(), 117: {2, 91},
-            118: set(), 119: {91, 8},
-        }
+        track_order = [8, 2, 91]
+        tracks = set(track_order)
         boundary_by_frame = {}
-        for frame in range(100, 120):
+        for step in range(60):
+            frame = 100 + step
+            detail_index, block, boundary_frame = frame_meta[frame]
             frame_rows = by_frame[frame]
-            self.assertEqual({c['metadata']['detail_block'] for c in frame_rows},
-                             {frame_rows[0]['metadata']['detail_block']})
+            self.assertEqual({c['metadata']['detail_block'] for c in frame_rows}, {block})
             self.assertEqual({c['track_id'] for c in frame_rows if c['stage'] == 'spatial'}, tracks)
             self.assertEqual({c['track_id'] for c in frame_rows
                               if c['stage'] == 'temporal' and not c['metadata']['boundary']}, tracks)
             boundary_by_frame[frame] = {c['track_id'] for c in frame_rows
                                         if c['stage'] == 'temporal' and c['metadata']['boundary']}
-            self.assertEqual(boundary_by_frame[frame], expected_boundary[frame])
-            block = frame_rows[0]['metadata']['detail_block']
-            if block in (4, 6, 8):
-                self.assertEqual(boundary_by_frame[frame], set())
-            elif block >= 7:
-                self.assertEqual(len(boundary_by_frame[frame]), 2)
+            if boundary_frame:
+                expected = (tracks if block < 4
+                            else {track_order[(detail_index // 2) % len(track_order)]})
+                self.assertEqual(boundary_by_frame[frame], expected)
             else:
-                self.assertEqual(boundary_by_frame[frame], tracks)
-        # Deep boundary subsets rotate on the even detail frames.
-        self.assertEqual(boundary_by_frame[107], {8, 2})
-        self.assertEqual(boundary_by_frame[117], {2, 91})
-        self.assertEqual(boundary_by_frame[109], {2, 91})
-        self.assertEqual(boundary_by_frame[119], {91, 8})
-        self.assertEqual(set().union(*boundary_by_frame.values()), tracks)
+                self.assertEqual(boundary_by_frame[frame], set())
+        for block in range(10):
+            frames = [frame for frame, (_, b, _) in frame_meta.items() if b == block]
+            yolo_frames = [frame for frame in frames if not frame_meta[frame][2]]
+            boundary_frames = [frame for frame in frames if frame_meta[frame][2]]
+            self.assertEqual(len(yolo_frames), 3)
+            self.assertEqual(len(boundary_frames), 3)
+            # Both of each block's frames carry spatial + middle for all tracks.
+            for frame in frames:
+                self.assertTrue({c['track_id'] for c in by_frame[frame]
+                                 if c['stage'] == 'spatial'} == tracks)
+                self.assertTrue({c['track_id'] for c in by_frame[frame]
+                                 if c['stage'] == 'temporal'
+                                 and not c['metadata']['boundary']} == tracks)
+            if block < 4:
+                for frame in boundary_frames:
+                    self.assertEqual(boundary_by_frame[frame], tracks)
+            else:
+                seen = set()
+                for frame in boundary_frames:
+                    self.assertEqual(len(boundary_by_frame[frame]), 1)
+                    seen.update(boundary_by_frame[frame])
+                self.assertEqual(seen, tracks)
         self.assertEqual(trace.dropped['detail_budget'], 0)
         self.assertEqual(trace.dropped['budget_events'], 0)
         self.assertEqual(trace.dropped['oversized_events'], 0)
@@ -140,9 +155,9 @@ class LiveDetailGraphTests(unittest.TestCase):
                 detail_bytes[event['frame']] += size
         self.assertLessEqual(max(detail_bytes.values()), 512 * 1024)
         self.assertLessEqual(max(frame_bytes.values()), 768 * 1024)
-        block9_frames = sorted(frame for frame, rows in by_frame.items()
-                               if rows[0]['metadata']['detail_block'] == 9)
-        self.assertEqual(block9_frames, [109, 119])
+        block9_frames = sorted(frame for frame, (_, b, boundary) in frame_meta.items()
+                               if b == 9 and boundary)
+        self.assertEqual(block9_frames, [119, 139, 159])
         for frame in block9_frames:
             self.assertLessEqual(detail_bytes[frame], 512 * 1024)
             self.assertLessEqual(frame_bytes[frame], 768 * 1024)
@@ -153,6 +168,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         events = []
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
+        trace.detail_index = 1  # the next frame is block 0's boundary subframe
         try:
             trace.begin_frame(1, 0)
             trace.begin_behavior([7], poses)
@@ -181,7 +197,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         and (Path(__file__).resolve().parents[2] / 'weights/final/lstm.pt').is_file()
         and (Path(__file__).resolve().parents[2] / 'weights/final/yolo26s-pose.pt').is_file(),
         'local final reproduction weights are absent')
-    def test_odd_yolo_and_even_boundary_subframes_fit_budgets(self):
+    def test_paired_yolo_and_boundary_subframes_fit_budgets(self):
         from modern_pipeline.frontend import YOLOPoseTracker
         directory = Path(__file__).resolve().parents[2] / 'weights/final'
         torch.set_num_threads(2)
@@ -196,20 +212,21 @@ class LiveDetailGraphTests(unittest.TestCase):
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
         trace.attach_yolo(frontend.model)
-        # Odd detail frame: block 4 with four scheduled YOLO modules and no
-        # boundary rows. Even detail frame: block 9 with YOLO inference still
-        # running, so one rotating boundary track and no YOLO details.
-        frames = ((4, 4, {12, 13, 14, 15}), (9, 9, set()))
+        # Block 9's two detail frames: d19 is the YOLO subframe with four
+        # scheduled modules and no boundary rows; d20 is the boundary subframe
+        # with one rotating track and no YOLO details. YOLO inference still runs
+        # on both frames, so the even frame carries its layer-output events.
+        frames = ((18, 19, {12, 13, 14, 15}), (19, 20, set()))
         try:
             frontend(image)
-            trace.yolo_detail_index = 2  # mid-stream YOLO schedule for block 4
-            for step, (preset, block, modules) in enumerate(frames):
+            for step, (preset, expected_index, modules) in enumerate(frames):
                 trace.detail_index = preset
                 trace.begin_frame(60 + step, 2. + step)
-                self.assertEqual(trace.detail_block, block)
+                self.assertEqual(trace.detail_index, expected_index)
+                self.assertEqual(trace.detail_block, 9)
                 self.assertEqual(trace.detail_modules, modules)
+                self.assertEqual(trace.detail_boundary, expected_index % 2 == 0)
                 frontend(image)
-                self.assertTrue(trace.yolo_ran)
                 trace.begin_behavior([8, 2, 91], poses)
                 result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
                 trace.end_frame([{'track_id': track, 'prediction_updated': True,
@@ -222,7 +239,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         self.assertEqual(trace.dropped['oversized_events'], 0)
         expected = {0: {'yolo_min': 1, 'boundary': set()},
                     1: {'yolo_min': 0, 'boundary': {2}}}
-        for step, (_, block, _) in enumerate(frames):
+        for step in range(2):
             frame_events = [event for event in events if event['frame'] == 60 + step]
             rows = [c for event in frame_events for c in event.get('calculations', [])]
             yolo_rows = [c for c in rows if c['stage'] == 'yolo']
@@ -247,10 +264,9 @@ class LiveDetailGraphTests(unittest.TestCase):
             self.assertLessEqual(sum(sizes), 768 * 1024)
             self.assertEqual(frame_events[-1]['node'], 'pipeline.output')
             self.assertEqual({row['metadata']['detail_block'] for row in rows
-                              if row['stage'] in ('spatial', 'temporal')}, {block})
-        # The even frame supplies the boundary example deferred by the odd frame.
-        self.assertEqual(expected[0]['boundary'] | expected[1]['boundary'], {2})
-        self.assertTrue(expected[1]['boundary'])
+                              if row['stage'] in ('spatial', 'temporal')}, {9})
+        # The even frame supplies block 9's boundary example.
+        self.assertEqual(expected[1]['boundary'], {2})
 
     def test_pool_serializes_nonfinite_contributions_as_null(self):
         predictor = self.predictor()

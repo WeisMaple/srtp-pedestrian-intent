@@ -86,13 +86,12 @@ class LiveTrace:
         self.detail_interval = max(0.0, float(detail_interval))
         self.detail_last = float('-inf')
         self.detail_index = 0
-        self.yolo_detail_index = 0
         self.detail_frame = False
+        self.detail_boundary = False
         self.detail_modules = set()
         self.detail_block = 0
         self.detail_bytes = 0
         self.yolo_module_count = 0
-        self.yolo_ran = False
         self.last_capture = float('-inf')
         self.active = False
         self.frame = -1
@@ -115,7 +114,6 @@ class LiveTrace:
         now = time.perf_counter()
         self.frame, self.time_seconds = int(frame), float(time_seconds)
         self.track_ids, self.batch_size, self.round = [], 0, 0
-        self.yolo_ran = False
         self.arithmetic.reset()
         self.active = now - self.last_capture >= self.interval
         if not self.active:
@@ -129,18 +127,20 @@ class LiveTrace:
         if self.detail_frame:
             self.detail_last = now
             self.detail_index += 1
-            # Detail subframes alternate: odd detail frames carry four YOLO
-            # module rows plus ST-GCN middle rows; even frames carry ST-GCN
-            # spatial/middle/boundary rows without YOLO. YOLO coverage advances
-            # only on odd frames, so 24 modules take six odd frames (about 12 s
-            # at a 1 fps detail interval) and no frame exceeds its budget.
-            if self.detail_index % 2:
-                self.yolo_detail_index += 1
-                self.detail_modules = self._scheduled_yolo_modules()
-            else:
+            # Each ST-GCN block occupies two detail frames: an odd YOLO
+            # subframe (spatial + middle rows plus four scheduled YOLO modules)
+            # and an even boundary subframe (spatial + middle + boundary rows,
+            # no YOLO details). Blocks advance every two detail frames, so a full
+            # block cycle takes 20 detail frames and six YOLO subframes cover all
+            # 24 modules.
+            self.detail_boundary = self.detail_index % 2 == 0
+            if self.detail_boundary:
                 self.detail_modules = set()
-            self.detail_block = (self.detail_index - 1) % 10
+            else:
+                self.detail_modules = self._scheduled_yolo_modules()
+            self.detail_block = ((self.detail_index - 1) // 2) % 10
         else:
+            self.detail_boundary = False
             self.detail_modules = set()
         self.detail_bytes = 0
         self._publish('pipeline', 'pipeline.frame', 1, {}, None, phase='start',
@@ -151,7 +151,7 @@ class LiveTrace:
         count = self.yolo_module_count
         if not count:
             return set()
-        start = self.yolo_detail_index * 4
+        start = (self.detail_index // 2) * 4
         return {(start + offset) % count for offset in range(4)}
 
     def begin_behavior(self, track_ids, histories=None):
@@ -248,14 +248,13 @@ class LiveTrace:
             self.yolo_module = network
             self.yolo_module_count = len(network.model)
             if self.detail_frame and not previous_count and self.yolo_module_count:
-                self.detail_modules = (self._scheduled_yolo_modules()
-                                       if self.detail_index % 2 else set())
+                self.detail_modules = (set() if self.detail_boundary
+                                       else self._scheduled_yolo_modules())
             fused = bool(getattr(network, 'is_fused', lambda: False)())
             if self.detail:
                 self.arithmetic.attach_yolo(network, fused, guard=lambda: bool(self.predictor.done_warmup))
             for index, module in enumerate(network.model):
                 def capture(inputs, output, duration, index=index, module=module):
-                    self.yolo_ran = True
                     tensor = first_tensor(output)
                     if tensor is None:
                         return

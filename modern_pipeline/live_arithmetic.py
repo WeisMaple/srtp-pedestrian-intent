@@ -14,18 +14,16 @@ from torch.nn import functional as F
 
 from modern_pipeline.model_catalog import select_representative_conv
 
-# Three complete middle-timestep rows for a 256-channel block already use about
-# 244 KiB of the 512 KiB detail budget. Capping boundary operands per selected
-# block at 4608 terms keeps a behavior-only detail frame under both limits with
-# three tracks; 2304-term blocks receive boundary rows for two rotating tracks.
-# Odd detail frames carry YOLO rows, so blocks above 576 temporal terms defer
-# their boundary rows to the next (even) detail frame, which has no YOLO rows.
-# Even frames that still run YOLO inference keep one rotating boundary track for
-# 2304-term blocks so the frame stays inside 768 KiB. The Task 7 benchmark
-# remains the production measurement for combined frames.
+# Each ST-GCN block occupies two detail frames: an odd YOLO subframe with
+# spatial + middle rows and an even boundary subframe with spatial + middle +
+# boundary rows. Shallow blocks can carry every boundary track; deep blocks
+# (more than 576 temporal terms) emit one rotating boundary track so the frame
+# stays under 512 KiB detail / 768 KiB total even when YOLO layer events share
+# it. Three 20-frame block cycles cover all boundary tracks. The Task 7
+# benchmark remains the production measurement for combined frames.
 DETAIL_BOUNDARY_TERM_LIMIT = 4608
-DETAIL_YOLO_BOUNDARY_MAX_TERMS = 576
-DETAIL_YOLO_RAN_BOUNDARY_TRACKS = 1
+DETAIL_DEEP_BOUNDARY_TERM_LIMIT = 576
+DETAIL_DEEP_BOUNDARY_TRACKS = 1
 
 
 def _rounded(tensor):
@@ -287,24 +285,19 @@ class LiveArithmetic:
                 weights = values(block.tcn[2].weight[0, :, :, 0])
                 middle = output.shape[2] // 2
                 terms = value.shape[1] * kernel
-                boundary_tracks = min(len(trace.track_ids),
-                                      DETAIL_BOUNDARY_TERM_LIMIT // terms)
-                if terms > DETAIL_YOLO_BOUNDARY_MAX_TERMS and self.trace.detail_index % 2:
-                    # Odd detail frames carry YOLO rows; defer deep boundary
-                    # examples to the next even detail frame, keeping every
-                    # middle row here.
+                if not self.trace.detail_boundary:
                     boundary_tracks = 0
-                elif self.trace.yolo_ran and terms > 1152:
-                    # YOLO inference events still consume the frame budget on
-                    # even subframes; keep one rotating boundary track for the
-                    # deepest blocks rather than dropping later events.
-                    boundary_tracks = min(boundary_tracks, DETAIL_YOLO_RAN_BOUNDARY_TRACKS)
+                elif terms > DETAIL_DEEP_BOUNDARY_TERM_LIMIT:
+                    boundary_tracks = min(len(trace.track_ids), DETAIL_DEEP_BOUNDARY_TRACKS)
+                else:
+                    boundary_tracks = min(len(trace.track_ids),
+                                          DETAIL_BOUNDARY_TERM_LIMIT // terms)
                 tracks = list(enumerate(trace.track_ids))
                 for boundary, timestep in ((False, middle), (True, 0)):
                     if boundary and timestep == middle:
                         continue
                     if boundary and boundary_tracks:
-                        shift = (self.trace.detail_index // 10) % len(trace.track_ids)
+                        shift = (self.trace.detail_index // 2) % len(trace.track_ids)
                         chosen = (tracks[shift:] + tracks[:shift])[:boundary_tracks]
                     elif boundary:
                         chosen = []
