@@ -73,6 +73,7 @@ class JobManager:
         self.network_predictor = None
         self.frontend_cache = OrderedDict()
         self.frontend_predictor = None
+        self.structure_cache = None
         self.config, self.model_error = None, None
         try:
             self.config = validate_bundle(self.model_dir)
@@ -365,6 +366,43 @@ class JobManager:
                 while len(self.network_cache) > 8:
                     self.network_cache.popitem(last=False)
             return deepcopy(result)
+        finally:
+            with self.lock:
+                self.network_active = False
+
+    def model_structure(self):
+        """Load the catalog once; share admission with all inference work."""
+        from .frontend_network import FrontendInspector
+        from modern_pipeline.behavior import BehaviorPredictor
+        from modern_pipeline.model_catalog import build_catalog
+
+        with self.lock:
+            if self.structure_cache is not None:
+                return deepcopy(self.structure_cache)
+            if self.config is None:
+                raise RuntimeError(self.model_error or '模型未就绪。')
+            if self.active is not None or self.network_active:
+                raise JobBusy('视频或网络计算正在运行，请等待完成。')
+            self.network_active = True
+        try:
+            config = self.config
+            if self.frontend_predictor is None:
+                self.frontend_predictor = FrontendInspector(self.model_dir / config['pose_model'])
+            if self.network_predictor is None:
+                import torch
+                torch.set_num_threads(2)
+                self.network_predictor = BehaviorPredictor(
+                    self.model_dir / config['stgcn'], self.model_dir / config['lstm'],
+                    'cpu', config['normalization'], self.model_dir / config['stats'])
+            catalog = build_catalog(
+                self.frontend_predictor.model, self.network_predictor.stgcn,
+                {'yolo': config.get('pose_model'), 'stgcn': config.get('stgcn'),
+                 'lstm': config.get('lstm'), 'normalization': config.get('normalization')},
+                fused=False)
+            catalog['yolo']['name'] = str(config.get('pose_model') or '')
+            with self.lock:
+                self.structure_cache = catalog
+            return deepcopy(catalog)
         finally:
             with self.lock:
                 self.network_active = False

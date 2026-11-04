@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import zipfile
@@ -18,7 +19,7 @@ import numpy as np
 from modern_pipeline.cli import PredictionCancelled
 from modern_pipeline.live_trace import LiveBuffer
 from modern_pipeline.web.app import create_app
-from modern_pipeline.web.jobs import JobManager
+from modern_pipeline.web.jobs import JobBusy, JobManager
 
 
 class WebTests(unittest.TestCase):
@@ -211,6 +212,44 @@ class WebTests(unittest.TestCase):
         self.assertEqual(state['frame'], 1)
         self.assertEqual(state['tracks'][0]['track_id'], 2)
         self.assertEqual(state['tracks'][0]['class_id'], 2)
+
+    def test_model_catalog_endpoint_reports_loading_failure_readably(self):
+        self.manager.model_structure = lambda: (_ for _ in ()).throw(RuntimeError('模型未就绪。'))
+        response = self.client.get('/api/model')
+        self.assertEqual(response.status_code, 503)
+        self.assertIn('模型未就绪', response.json()['detail'])
+
+    def test_model_catalog_endpoint_returns_manager_catalog(self):
+        self.manager.model_structure = lambda: {'yolo': {'modules': []}, 'versions': {'stgcn_epoch': 121}}
+        response = self.client.get('/api/model')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['versions']['stgcn_epoch'], 121)
+
+    def test_model_structure_caches_catalog_and_shares_admission(self):
+        self.manager.frontend_predictor = SimpleNamespace(model=object())
+        self.manager.network_predictor = SimpleNamespace(stgcn=object())
+        catalog = {'yolo': {'name': None}, 'versions': {'stgcn_epoch': 121}}
+        with patch('modern_pipeline.model_catalog.build_catalog', return_value=catalog) as build:
+            first = self.manager.model_structure()
+            second = self.manager.model_structure()
+        self.assertEqual(build.call_count, 1)
+        self.assertEqual(first['yolo']['name'], 'pose.pt')
+        self.assertEqual(second['versions']['stgcn_epoch'], 121)
+        self.assertIsNot(first, second)
+        self.assertFalse(self.manager.network_active)
+        self.manager.structure_cache = None
+        self.manager.network_active = True
+        try:
+            with self.assertRaises(JobBusy):
+                self.manager.model_structure()
+        finally:
+            self.manager.network_active = False
+
+    def test_model_structure_reports_missing_models(self):
+        self.manager.config = None
+        self.manager.model_error = '模型未就绪。'
+        with self.assertRaisesRegex(RuntimeError, '模型未就绪'):
+            self.manager.model_structure()
 
     def test_final_trace_includes_first_person_forecast_after_sampling_interval(self):
         original = self.manager.run_pipeline

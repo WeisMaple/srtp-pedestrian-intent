@@ -31,6 +31,15 @@ def create_app(manager=None, max_upload_bytes=500 * 1024 * 1024):
     def health():
         return manager.health()
 
+    @app.get('/api/model')
+    def model():
+        try:
+            return JSONResponse(manager.model_structure(), headers={'Cache-Control': 'no-store'})
+        except JobBusy as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except (OSError, RuntimeError) as exc:
+            raise HTTPException(503, str(exc)) from exc
+
     @app.post('/api/jobs', status_code=201)
     async def upload(file: UploadFile = File(...)):
         filename = (file.filename or '').replace('\\', '/').rsplit('/', 1)[-1]
