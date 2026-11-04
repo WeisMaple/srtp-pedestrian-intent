@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detailCoverage, detailForBlock, detailForModule, normalizeModelStructure } from '../src/domain/model.js';
+import { mergeDetail, normalizeModelStructure } from '../src/domain/model.js';
 
 const raw = {
     yolo: { modules: [
@@ -19,10 +19,16 @@ test('normalizes module and block lookups', () => {
     assert.equal(model.versions.stgcn_epoch, 121);
 });
 
-test('reads latest detail rows from a live snapshot', () => {
-    const snapshot = { details: { yolo: { 4: { id: 'yolo.conv.4', module: 4 } }, stgcn: { 2: [{ id: 's' }] } } };
-    assert.equal(detailForModule(snapshot, 4).id, 'yolo.conv.4');
-    assert.equal(detailForModule(snapshot, 5), null);
-    assert.equal(detailForBlock(snapshot, 2).length, 1);
-    assert.deepEqual(detailCoverage(snapshot), { yolo: [4], stgcn: [2] });
+test('merges only same-frame detail payloads', () => {
+    const snapshot = { frame: 7, details: { yolo: {}, stgcn: {} } };
+    const payload = { frame: 7, calculations: [
+        { stage: 'yolo', module: 4, metadata: { detail: true } },
+        { stage: 'stgcn', metadata: { detail: true, detail_block: 2 } },
+        { stage: 'stgcn', metadata: { detail: false, detail_block: 3 } },
+    ] };
+    const details = mergeDetail(snapshot, payload);
+    assert.equal(details.yolo[4].module, 4);
+    assert.deepEqual(details.stgcn[2].map(row => row.stage), ['stgcn']);
+    assert.equal(details.stgcn[3], undefined);
+    assert.deepEqual(mergeDetail(snapshot, { frame: 8, calculations: payload.calculations }), snapshot.details);
 });

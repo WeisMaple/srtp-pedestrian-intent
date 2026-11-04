@@ -8,7 +8,9 @@ import numpy as np
 import torch
 
 from modern_pipeline.behavior import BehaviorPredictor
+from modern_pipeline.live_arithmetic import dense_conv_row
 from modern_pipeline.live_trace import LiveTrace, SAMPLING
+from modern_pipeline.model_catalog import select_representative_conv
 from st_gcn import Model, SkeletonLSTM
 
 
@@ -135,6 +137,46 @@ class LiveArithmeticTests(unittest.TestCase):
         self.assertEqual(normalization['metadata']['std'], 2.)
         for row in rows:
             self.assert_sum(row)
+
+    def test_dense_batch_norm_rows_expose_reconstruction_metadata(self):
+        torch.manual_seed(6)
+
+        class Block(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.conv = torch.nn.Conv2d(3, 4, 3, padding=1, bias=True)
+                self.bn = torch.nn.BatchNorm2d(4)
+                self.act = torch.nn.SiLU()
+
+            def forward(self, value):
+                return self.act(self.bn(self.conv(value)))
+
+        block = Block().eval()
+        with torch.no_grad():
+            block.bn.running_mean.fill_(0.25)
+            block.bn.running_var.fill_(1.5)
+            block.bn.weight.fill_(1.2)
+            block.bn.bias.fill_(-0.4)
+        selection = select_representative_conv(block, fused=False)
+        captured = {}
+        handle = block.conv.register_forward_hook(
+            lambda _module, inputs, output: captured.update(
+                input=inputs[0].detach(), output=output.detach()))
+        value = torch.randn(1, 3, 8, 8)
+        with torch.no_grad():
+            output = block(value)
+        handle.remove()
+        row = dense_conv_row(0, selection, captured['input'], captured['output'], False)
+        self.assertEqual(row['activation'], 'batch_norm_silu')
+        bn = row['metadata']['bn']
+        self.assertEqual(set(bn), {'gamma', 'beta', 'running_mean', 'running_var', 'epsilon'})
+        preactivation = math.fsum(x * w for x, w in zip(row['inputs'], row['weights'])) + row['bias']
+        normalized = (bn['gamma'] * (preactivation - bn['running_mean'])
+                      / math.sqrt(bn['running_var'] + bn['epsilon']) + bn['beta'])
+        activated = normalized / (1 + math.exp(-normalized))
+        self.assertAlmostEqual(row['actual'], round(activated, 5), places=5)
+        y, x = row['target']['y'], row['target']['x']
+        self.assertEqual(row['actual'], round(float(output[0, 0, y, x]), 5))
 
     @unittest.skipUnless((Path(__file__).resolve().parents[2] / 'weights/final/lstm.pt').is_file(),
                          'local final reproduction weights are absent')

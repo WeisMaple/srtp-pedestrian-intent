@@ -419,7 +419,17 @@ class LiveBuffer:
             self.time_seconds = event['time_seconds']
         self.dropped.update(event.get('dropped', {}))
         data = self._store('computation', event)
-        self.nodes[event['node']] = data
+        # Detail rows already travel in `details`; keeping them in `nodes` too
+        # doubled the snapshot and made one SSE message unbounded. Skip the
+        # duplicated `flow.*` detail events, and keep layer events that carry
+        # tensor outputs (YOLO feature planes) while dropping their duplicate
+        # calculation rows. Decoder, pool and classifier rows stay in `nodes`.
+        if event.get('detail') and event['node'].startswith('flow.'):
+            pass
+        elif event.get('detail'):
+            self.nodes[event['node']] = dict(data, calculations=[])
+        else:
+            self.nodes[event['node']] = data
         for row in event.get('calculations', []) or []:
             metadata = row.get('metadata', {}) or {}
             if not metadata.get('detail'):
@@ -481,7 +491,11 @@ class LiveBuffer:
         if saved.get('job_id') != self.job_id:
             raise ValueError('Live snapshot belongs to another job')
         self.seq = int(saved['seq'])
-        self.nodes = saved.get('nodes', {})
+        # Older snapshots may still contain duplicated detail nodes; drop them
+        # on restore so the bounded payload invariant survives upgrades. New
+        # layer events may carry `detail` but no duplicated calculation rows.
+        self.nodes = {name: data for name, data in (saved.get('nodes') or {}).items()
+                      if not (data.get('detail') and data.get('calculations'))}
         # JSON turns detail keys into strings; restore the integer module and
         # block keys so later appends and sorted coverage stay consistent.
         self.details = {'yolo': {}, 'stgcn': {}}

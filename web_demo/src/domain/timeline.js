@@ -26,9 +26,3 @@ export function stepReady(step, snapshot = {}, job = {}) {
         || tracks.some(track => Array.isArray(track.probabilities) && track.probabilities.length > 0);
     return false;
 }
-
-export function nextBeat(state, availableBeats) {
-    if (state?.paused || !Number.isInteger(availableBeats) || availableBeats <= 0) return null;
-    const beat = Number.isInteger(state?.beat) ? Math.max(0, state.beat) : 0;
-    return beat + 1 < availableBeats ? beat + 1 : null;
-}

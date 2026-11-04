@@ -164,8 +164,10 @@ class FrontendInspector:
             predictor.batch = None
         if 'input' not in captured:
             raise RuntimeError('未捕获到该模块的卷积输出。')
+        # Record rows use six decimals per the design so the ledger's
+        # reconstruction stays within the 1e-5 record tolerance.
         return dense_conv_row(module_index, selection, captured['input'],
-                              captured['output'], fused=False)
+                              captured['output'], fused=False, decimals=6)
 
     @torch.inference_mode()
     def replay(self, image_bgr):

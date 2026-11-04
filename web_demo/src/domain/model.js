@@ -14,22 +14,6 @@ export function normalizeModelStructure(raw) {
     };
 }
 
-export function detailForModule(snapshot, module) {
-    return snapshot?.details?.yolo?.[module] || null;
-}
-
-export function detailForBlock(snapshot, block) {
-    return snapshot?.details?.stgcn?.[block] || [];
-}
-
-export function detailCoverage(snapshot) {
-    const details = snapshot?.details || EMPTY;
-    return {
-        yolo: Object.keys(details.yolo || {}).map(Number).sort((a, b) => a - b),
-        stgcn: Object.keys(details.stgcn || {}).map(Number).sort((a, b) => a - b),
-    };
-}
-
 export function mergeDetail(snapshot, payload) {
     const rows = payload?.calculations || [];
     if (!rows.length || snapshot?.frame !== payload?.frame) return snapshot?.details || EMPTY;

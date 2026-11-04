@@ -39,3 +39,26 @@
 .transport-progress input { width: 100%; accent-color: var(--focus); }
 .transport-next, .transport-follow { border: 1px solid var(--line-soft); background: none; color: var(--text-2); padding: 6px 10px; border-radius: 4px; font-size: 12px; }
 .transport-follow[aria-pressed="true"] { color: var(--current); border-color: var(--current); }
+.corridor-stage-shell { position: relative; height: 100%; min-height: 0; }
+.camera-reset { position: absolute; right: 14px; bottom: 14px; z-index: 6; border: 1px solid var(--line-soft);
+    background: rgba(6,18,37,.86); color: var(--text-2); padding: 6px 10px; border-radius: 4px; font: 12px var(--font-mono); }
+.camera-reset:hover { color: var(--focus); border-color: var(--focus); }
+.transport-step, .transport-speed button { border: 1px solid var(--line-soft); background: none; color: var(--text-2);
+    padding: 6px 8px; border-radius: 4px; font-size: 12px; }
+.transport-speed { display: flex; gap: 4px; }
+.transport-speed button[aria-pressed="true"] { color: var(--focus); border-color: var(--focus); }
+.structure-retry { display: flex; align-items: center; gap: 6px; }
+.structure-retry button, .record-toggle { border: 1px solid var(--line-soft); background: none; color: var(--text-2);
+    padding: 4px 8px; border-radius: 3px; font-size: 11px; }
+.record-toggle[aria-pressed="true"] { color: var(--focus); border-color: var(--focus); }
+.record-lens { border-top: 1px solid var(--line-dim); padding: 12px 16px; max-height: 34vh; overflow: auto; }
+.record-lens header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.record-lens header span { display: block; font: 10px var(--font-mono); color: var(--muted); letter-spacing: .12em; }
+.record-lens header strong { font-size: 14px; }
+.record-lens header button { background: none; border: 0; color: var(--text-2); font-size: 20px; }
+.record-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 8px; }
+.record-controls label { display: grid; gap: 4px; font-size: 11px; color: var(--text-2); }
+.record-controls input, .record-controls select { background: var(--bg-1); border: 1px solid var(--line-soft);
+    border-radius: 3px; padding: 4px 6px; color: var(--text-1); font-size: 12px; width: 120px; }
+.record-note { margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+.record-error { color: var(--current); font-size: 12px; }

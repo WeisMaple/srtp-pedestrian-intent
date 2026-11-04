@@ -86,3 +86,42 @@ console: Failed to load resource: the server responded with a status of 404 (Not
 - 实时快照不包含完整 50 帧关键点数组，因此 ID 绑定展位显示当前真实骨架与历史计数，不伪造 50 帧历史骨架带。
 - 刷新后未持久化的 LSTM/意图代表算式不会从旧会话恢复；页面只显示新收到的事件或已保存的 YOLO/ST-GCN 详细行。
 - 1440×900 与平板竖屏只做了布局与可操作性检查，没有做像素级视觉回归。
+
+## 修复后复检（2026-11-04）
+
+本节记录最终统一评审修复后的真实浏览器复检。旧节保留首轮验收记录；其中 favicon 404 已在修复轮消除。
+
+### 复检环境
+
+| 项目 | 值 |
+| --- | --- |
+| 服务端 | `.venv/bin/python -s run_web_demo.py --port 8765 --model-dir weights/final` |
+| 前端 | `web_demo/dist`（修复后重新构建） |
+| 模型 | `weights/final/`（YOLO26s-Pose、ST-GCN epoch 121、LSTM epoch 68、`legacy_pair`） |
+| 视频 | `artifacts/demo/demo_input.mp4`，75 帧，1280×720，30 fps |
+| 浏览器 | Playwright 1.64.1 驱动 Google Chrome for Testing 156.0.8078.4（Chromium），headless |
+| 视口 | 1920×1080 |
+| 任务 ID | `e41664c125934c18acb6fe30fc8b7477` |
+| 处理指标 | `frames=75`、`pose_observations=300`、`classification_updates=103`、`processing_seconds=20.45`、`processing_fps=3.67`（CPU、本机单次，不是准确率或通用速度承诺） |
+| 截图 | `artifacts/browser-check/recheck-*.png`、`camera-before.png`、`camera-dragged.png`、`camera-reset.png`（`artifacts/` 不提交） |
+
+### 复检结果
+
+| # | 检查 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| 1 | 实时分析中自动讲解推进 | PASS | 分析运行期间进度从 `1 / 3` 变为 `2 / 3`；快照对象持续更新，定时器未被重置 |
+| 2 | 步骤 ⑥ 最后一个节拍停止 | PASS | 播放后停在 `3 / 3`，播放按钮回到暂停态；3 秒后仍为“意图”`3 / 3`，未循环回步骤 ① |
+| 3 | 相机轨道旋转/缩放与重置 | PASS | 拖动后画布像素明显变化（18.6% 像素差异 > 8），用户操作后讲解暂停；点击“重置视角”后与重置前基线平均绝对差 0.0045、99 分位 0、仅 0.02% 像素差异 > 8（抗锯齿级别） |
+| 4 | 同一 ID 的姿态带刷新 | PASS | 步骤 ③ 两次读取均为 `ID 01`；1.3 秒间隔的画布截图不同，实时采样历史姿态带随新观测重建 |
+| 5 | YOLO 记录重算 | PASS | 已完成任务中打开记录重算，默认模块 0/源帧 0 实际输出 −0.263459、重建 −0.263453、误差 5.587e−6；切换模块 1/源帧 10 后实际输出 8.2442、重建 8.24421、误差 6.901e−6 |
+| 6 | 键盘 | PASS | 空格在播放/暂停间切换；←/→ 在暂停状态下将节拍从 `1 / 3` 调到 `2 / 3` 再返回 |
+| 7 | 控制台、网络与 favicon | PASS | 无 `pageerror`；无 console error；响应监听无 4xx/5xx；`favicon.ico` 404 已消除 |
+| 8 | 快照去重 | PASS | 本任务 `live.json` 的 `nodes` 为 296,405 B / 69 项，`nodes` 中无带重复计算行的 detail 事件；`details` 为 2,156,797 B，快照总计 2,458,313 B |
+
+### 说明与剩余限制
+
+- 相机重置的精确 PNG 字节比较为 false，原因是 WebGL 抗锯齿和截图亚像素差异；按像素比较，重置前后几乎完全一致（平均绝对差 0.0045，99 分位 0）。复检截图 `camera-before/dragged/reset.png` 可复核。
+- 记录重算当前只接入 YOLO 单模块代表卷积；`/api/jobs/<id>/network` 与 `/api/jobs/<id>/frontend-network` 仍保留在后端，但 UI 未接入完整记录页面。运行中、失败或取消的任务不显示记录开关。
+- 步骤 ① 仍使用左侧上下文条的视频，而不是三维灯箱平面；三维拾取覆盖步骤 ② 特征平面与步骤 ⑤ 骨架关节的已采集代表行，任意帧/关节的完整重定向通过模块/块选择器与数值台完成。
+- `LiveBuffer.details` 会跨帧累积已采集的 YOLO 模块与 ST-GCN 块行；本任务 `details` 约 2.16 MB。`nodes` 已不再复制 detail 行且有回归测试，但累计 `details` 目前只有结构上限（24 模块 / 每块 12 行），没有独立的字节上限。
+- 刷新页面后，未持久化的 LSTM/意图代表算式仍会回到等待状态；本轮未改变该行为。

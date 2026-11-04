@@ -12,8 +12,11 @@ export function buildMemoryLayer() {
 }
 
 export function updateMemoryLayer(layer, memory) {
+    // Recurrent events and denormalized forecast events both mark completed
+    // rounds; future poses themselves are not rendered here.
+    const completed = Math.max(memory.rounds?.length || 0, memory.forecasts?.length || 0);
     layer.bars.forEach((bar, index) => {
-        const active = index < (memory.rounds?.length || 0);
+        const active = index < completed;
         bar.material.opacity = active ? 0.55 : 0.14;
         bar.scale.y = active ? 1.4 : 0.8;
     });

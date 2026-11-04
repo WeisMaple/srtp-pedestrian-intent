@@ -147,6 +147,36 @@ class LiveBufferTests(unittest.TestCase):
         self.assertEqual(recovery[0]['data']['dropped_events'], 1)
         self.assertEqual(buffer.read(None, 'running')[0]['event'], 'snapshot')
 
+    def test_snapshot_excludes_duplicated_detail_rows_and_stays_bounded(self):
+        buffer = LiveBuffer('abc')
+        for index in range(6):
+            event = self.event(0, 'flow.yolo.conv.%d' % index)
+            event['detail'] = True
+            event['payload'] = 'x' * 20000
+            event['calculations'] = [{'stage': 'yolo', 'module': index,
+                                      'metadata': {'detail': True}}]
+            buffer.append(event)
+        kept = ('flow.lstm.normalize.track1', 'flow.lstm.decoder.round1.track1',
+                'flow.stgcn.pool.track1', 'flow.stgcn.classifier.track1')
+        for node in kept:
+            buffer.append(self.event(0, node))
+        layer = self.event(0, 'yolo.3')
+        layer['detail'] = True
+        layer['tensors'] = {'output': {'values': [[1]], 'axes': ['batch']}}
+        layer['calculations'] = [{'stage': 'yolo', 'module': 3, 'metadata': {'detail': True}}]
+        buffer.append(layer)
+        snapshot = buffer.snapshot('running')
+        self.assertTrue(all(not name.startswith('flow.yolo') for name in snapshot['nodes']))
+        for node in kept:
+            self.assertIn(node, snapshot['nodes'])
+        self.assertIn('yolo.3', snapshot['nodes'])
+        self.assertEqual(snapshot['nodes']['yolo.3']['tensors']['output']['values'], [[1]])
+        self.assertEqual(snapshot['nodes']['yolo.3']['calculations'], [])
+        self.assertEqual(len(snapshot['details']['yolo']), 6)
+        size = len(json.dumps(snapshot, allow_nan=False, separators=(',', ':')).encode('utf-8'))
+        self.assertLess(size, 64 * 1024)
+        self.assertLessEqual(size, SAMPLING['frame_max_bytes'] + SAMPLING['detail_calculation_max_bytes'])
+
     def test_saved_snapshot_restores_without_claiming_replay_events(self):
         buffer = LiveBuffer('abc')
         buffer.append(self.event(12))

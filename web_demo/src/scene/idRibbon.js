@@ -3,9 +3,11 @@ import { historyPoses } from '../domain/tracks.js';
 import { buildSkeletonGroup } from './skeletonLayer.js';
 import { COLORS, lineMaterial } from './materials.js';
 
-export function buildRibbonGroup(track, { maxFrames = 50, spacing = 0.62 } = {}) {
+export function buildRibbonGroup(track, { maxFrames = 50, spacing = 0.62, poses: sampled = null } = {}) {
     const group = new THREE.Group();
-    const poses = historyPoses(track).slice(-maxFrames);
+    // The live snapshot carries only a bounded, sampled history (10 steps);
+    // fall back to saved track history for job records.
+    const poses = (Array.isArray(sampled) && sampled.length ? sampled : historyPoses(track)).slice(-maxFrames);
     poses.forEach((pose, index) => {
         if (!pose) {
             group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([

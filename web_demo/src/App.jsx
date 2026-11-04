@@ -50,6 +50,7 @@ export default function App() {
             pending={jobState.pending} onUpload={jobState.upload} onStart={jobState.start} onCancel={jobState.cancel}
             onOpenCorridor={() => navigate('corridor')} onOpenResults={() => navigate('results')} />}
         {page === 'corridor' && <Corridor job={jobState.job} live={live.snapshot} structure={model.structure}
+            structureError={model.error} onRetryStructure={model.retry}
             state={state} actions={actions} selectedTrack={selectedTrack} tracks={tracks}
             onSelectTrack={id => { setSelectedTrackId(id); actions.selectTrack(id); }}
             calculation={calculation} terms={terms} filter={filter} page={pageIndex}

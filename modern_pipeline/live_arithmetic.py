@@ -26,8 +26,8 @@ DETAIL_DEEP_BOUNDARY_TERM_LIMIT = 576
 DETAIL_DEEP_BOUNDARY_TRACKS = 1
 
 
-def _rounded(tensor):
-    return [None if not torch.isfinite(value) else round(float(value), 5)
+def _rounded(tensor, decimals=5):
+    return [None if not torch.isfinite(value) else round(float(value), decimals)
             for value in tensor.detach().reshape(-1).cpu()]
 
 
@@ -38,7 +38,7 @@ def _scalar(value):
     return round(value, 5) if math.isfinite(value) else None
 
 
-def dense_conv_row(module_index, selection, value, output, fused):
+def dense_conv_row(module_index, selection, value, output, fused, decimals=5):
     conv = selection.conv
     y, x = output.shape[-2] // 2, output.shape[-1] // 2
     kh, kw = conv.kernel_size
@@ -59,6 +59,7 @@ def dense_conv_row(module_index, selection, value, output, fused):
     weights = conv.weight[0]
     raw = output[0, 0, y, x]
     activation = selection.activation
+    bn_metadata = None
     if activation in ('batch_norm', 'batch_norm_silu'):
         bn = selection.parent.bn
         channel = 0
@@ -66,6 +67,11 @@ def dense_conv_row(module_index, selection, value, output, fused):
         activated = activated * bn.weight[channel] + bn.bias[channel]
         if activation == 'batch_norm_silu':
             activated = F.silu(activated)
+        # The web NumericalLedger reconstructs the row from these exact
+        # parameters; without them every BN record row shows a null result.
+        bn_metadata = {'gamma': float(bn.weight[channel]), 'beta': float(bn.bias[channel]),
+                       'running_mean': float(bn.running_mean[channel]),
+                       'running_var': float(bn.running_var[channel]), 'epsilon': float(bn.eps)}
     elif activation == 'silu':
         activated = F.silu(raw)
     else:
@@ -75,7 +81,7 @@ def dense_conv_row(module_index, selection, value, output, fused):
     elif not torch.isfinite(conv.bias[0]):
         bias = None
     else:
-        bias = round(float(conv.bias[0]), 5)
+        bias = round(float(conv.bias[0]), decimals)
     return {
         'id': 'yolo.conv.%d' % module_index, 'stage': 'yolo',
         'module': int(module_index), 'fused': bool(fused),
@@ -84,8 +90,8 @@ def dense_conv_row(module_index, selection, value, output, fused):
         'target': {'channel': 0, 'y': y, 'x': x},
         'term_axes': ['in_channel', 'kernel_y', 'kernel_x'],
         'term_shape': [int(conv.in_channels), int(kh), int(kw)],
-        'inputs': _rounded(patch), 'weights': _rounded(weights), 'bias': bias,
-        'actual': None if not torch.isfinite(activated) else round(float(activated), 5),
+        'inputs': _rounded(patch, decimals), 'weights': _rounded(weights, decimals), 'bias': bias,
+        'actual': None if not torch.isfinite(activated) else round(float(activated), decimals),
         'activation': activation, 'formula': 'y = activation(Σc Σky Σkx(x × W) + b)',
         'input_indices': [], 'connected': [True] * int(patch.numel()),
         'padding': padding,
@@ -94,7 +100,7 @@ def dense_conv_row(module_index, selection, value, output, fused):
                      'input_shape': list(value.shape), 'stride': list(conv.stride),
                      'padding': list(conv.padding), 'dilation': list(conv.dilation),
                      'fused': bool(fused), 'term_count': int(patch.numel()),
-                     'source': 'actual_forward_hooks'}}
+                     'source': 'actual_forward_hooks', **({'bn': bn_metadata} if bn_metadata else {})}}
 
 
 def values(tensor):
@@ -343,8 +349,9 @@ class LiveArithmetic:
         times, joints = self.pool_values.shape[1:]
         count = times * joints
         # A five-decimal uniform weight cannot sum to one; express the mean as
-        # the sum of per-term scaled contributions instead, so every operand is
-        # exactly five decimals and the weights are exactly one.
+        # the sum of per-term scaled contributions instead. Each operand is
+        # divided by count before five-decimal rounding, so every recorded
+        # operand is exact and the weights are exactly one.
         weights = [1.] * count
         for batch, track_id in enumerate(self.trace.track_ids):
             row = calculation('stgcn.pool.track%d' % track_id, 'pool', '全局平均池化', track_id,

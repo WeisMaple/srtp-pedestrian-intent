@@ -6,7 +6,9 @@ export async function request(path, options = {}) {
             const body = await response.json();
             message = typeof body.detail === 'string' ? body.detail : body.message || message;
         } catch { /* Non-JSON errors still receive a readable status. */ }
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
     }
     return response.json();
 }
