@@ -3,6 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BAYS, cameraForStep } from './layout.js';
 import { COLORS, lineMaterial, glowMaterial } from './materials.js';
 import { buildRibbonGroup } from './idRibbon.js';
+import { buildFeatureLayer, updateFeatureLayer } from './featureLayer.js';
+import { buildMemoryLayer, updateMemoryLayer } from './memoryLayer.js';
+import { buildGraphLayer, updateGraphLayer } from './graphLayer.js';
+import { buildIntentLayer, updateIntentLayer } from './intentLayer.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -56,6 +60,15 @@ export function createCorridorScene(host, { onPick, onError } = {}) {
         group.userData.bay = bay; pickables.push(box); return group;
     }
     BAYS.forEach(bay => bays.set(bay.step, bayGroup(bay)));
+
+    const feature = buildFeatureLayer(24);
+    feature.group.position.set(...BAYS[1].position).add(V(0, 1.5, 0)); root.add(feature.group);
+    const memory = buildMemoryLayer();
+    memory.group.position.set(...BAYS[3].position).add(V(0, 1.2, 0)); root.add(memory.group);
+    const graph = buildGraphLayer();
+    graph.group.position.set(...BAYS[4].position).add(V(0, 1.4, 0)); root.add(graph.group);
+    const intent = buildIntentLayer(['其他', '不过街', '过街']);
+    intent.group.position.set(...BAYS[5].position).add(V(0, 1, 0)); root.add(intent.group);
 
     const ribbon = new THREE.Group();
     ribbon.position.set(...BAYS[2].position).add(V(0, 1.2, 0));
@@ -140,6 +153,12 @@ export function createCorridorScene(host, { onPick, onError } = {}) {
         reset() { controls.enabled = false; frameCamera(true); },
         append(object) { root.add(object); },
         setTrack,
+        setLive(model) {
+            updateFeatureLayer(feature, model);
+            updateMemoryLayer(memory, model.memory);
+            updateGraphLayer(graph, model.track?.keypoints || null);
+            updateIntentLayer(intent, model.intent.probabilities);
+        },
         dispose() {
             disposed = true; cancelAnimationFrame(frame); observer.disconnect();
             renderer.domElement.removeEventListener('pointerup', select);
