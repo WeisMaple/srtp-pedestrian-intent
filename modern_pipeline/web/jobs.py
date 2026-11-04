@@ -448,6 +448,51 @@ class JobManager:
             with self.lock:
                 self.network_active = False
 
+    def yolo_conv(self, job_id, frame, module_index):
+        """Recompute one top-level module's representative convolution on CPU."""
+        from .frontend_network import FrontendInspector, read_source_frame
+
+        key = (job_id, frame, module_index)
+        with self.lock:
+            job = self.get(job_id)
+            if self.active is not None or self.network_active:
+                raise JobBusy('视频或网络计算正在运行，请等待完成。')
+            if not 0 <= frame < job.state['metadata']['frame_count']:
+                raise ValueError('所选帧超出原始视频范围。')
+            # The released model has 24 top-level modules: 0-22 backbone/neck,
+            # 23 the pose head. The head's representative convolution is valid.
+            if not 0 <= module_index < 24:
+                raise ValueError('模块编号超出范围。')
+            if key in self.frontend_cache:
+                self.frontend_cache.move_to_end(key)
+                return deepcopy(self.frontend_cache[key])
+            if self.config is None:
+                raise RuntimeError(self.model_error or '模型未就绪。')
+            self.network_active = True
+        try:
+            image = read_source_frame(job.directory / job.state['source_file'], frame)
+            if self.frontend_predictor is None:
+                self.frontend_predictor = FrontendInspector(self.model_dir / self.config['pose_model'])
+            result = self.frontend_predictor.module_conv(image, module_index)
+            result['source'] = {'kind': 'recomputed_module_conv', 'job_id': job_id,
+                                'frame': frame, 'module': module_index, 'device': 'cpu',
+                                'model_version': self.config.get('version'),
+                                'note': '保留独立 Conv / BatchNorm / SiLU 的单模块代表卷积重算。'}
+            try:
+                serialized = json.dumps(result, allow_nan=False, ensure_ascii=False)
+            except ValueError as exc:
+                raise RuntimeError('模块卷积记录包含非有限数值。') from exc
+            if len(serialized.encode('utf-8')) > 2 * 1024 * 1024:
+                raise RuntimeError('模块卷积记录超过大小限制。')
+            with self.lock:
+                self.frontend_cache[key] = result
+                while len(self.frontend_cache) > 8:
+                    self.frontend_cache.popitem(last=False)
+            return deepcopy(result)
+        finally:
+            with self.lock:
+                self.network_active = False
+
     def file(self, job_id, name):
         job = self.get(job_id)
         names = {'source': job.state['browser_file'], 'poster': 'poster.jpg'}

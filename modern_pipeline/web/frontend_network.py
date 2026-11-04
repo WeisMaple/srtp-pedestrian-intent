@@ -12,6 +12,9 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
+from modern_pipeline.live_arithmetic import dense_conv_row
+from modern_pipeline.model_catalog import select_representative_conv
+
 
 def read_source_frame(path, frame):
     """Decode one zero-based original frame, without retaining the video."""
@@ -132,6 +135,37 @@ class FrontendInspector:
         self.name = weights.name
         if not hasattr(self.model.model[0], 'bn') or type(self.model.model[-1]).__name__ != 'Pose26':
             raise ValueError('此计算视图需要保留 BatchNorm 的 YOLO26 Pose 模型。')
+
+    @torch.inference_mode()
+    def module_conv(self, image_bgr, module_index):
+        """Replay one frame and return the module's unfused representative convolution."""
+        if image_bgr.ndim != 3 or image_bgr.shape[2] != 3 or image_bgr.dtype != np.uint8:
+            raise ValueError('模块卷积需要 uint8 BGR 原始视频帧。')
+        if not 0 <= module_index < len(self.model.model):
+            raise ValueError('模块编号超出范围。')
+        module = self.model.model[module_index]
+        selection = select_representative_conv(module, fused=False)
+        if selection is None:
+            raise ValueError('该模块没有可检查的代表卷积。')
+        captured = {}
+
+        def hook(_module, inputs, output):
+            captured['input'] = inputs[0].detach()
+            captured['output'] = output.detach()
+
+        handle = selection.conv.register_forward_hook(hook)
+        predictor = self.predictor
+        predictor.batch = (['source-frame'], [image_bgr], [''])
+        try:
+            tensor = predictor.preprocess([image_bgr])
+            self.model(tensor)
+        finally:
+            handle.remove()
+            predictor.batch = None
+        if 'input' not in captured:
+            raise RuntimeError('未捕获到该模块的卷积输出。')
+        return dense_conv_row(module_index, selection, captured['input'],
+                              captured['output'], fused=False)
 
     @torch.inference_mode()
     def replay(self, image_bgr):

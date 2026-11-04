@@ -128,6 +128,21 @@ def create_app(manager=None, max_upload_bytes=500 * 1024 * 1024):
         except (OSError, RuntimeError) as exc:
             raise HTTPException(503, str(exc)) from exc
 
+    @app.get('/api/jobs/{job_id}/yolo-conv')
+    def yolo_conv(job_id: str, frame: int = Query(..., ge=0), module: int = Query(..., ge=0)):
+        find(job_id)
+        try:
+            result = manager.yolo_conv(job_id, frame, module)
+            return JSONResponse(result, headers={'Cache-Control': 'no-store'})
+        except JobBusy as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except (OSError, RuntimeError) as exc:
+            raise HTTPException(503, str(exc)) from exc
+
     @app.get('/api/jobs/{job_id}/preview')
     def preview(job_id: str):
         find(job_id)
