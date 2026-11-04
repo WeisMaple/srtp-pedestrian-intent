@@ -25,3 +25,16 @@
 .rail-people button { border: 1px solid var(--line-soft); background: none; color: var(--text-2); padding: 4px 8px; border-radius: 3px; font: 12px var(--font-mono); }
 .rail-people button[aria-pressed="true"] { color: var(--current); border-color: var(--current); }
 .rail-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.step-nav { position: absolute; top: 12px; left: 12px; right: 12px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.step-nav button { border: 1px solid var(--line-dim); background: rgba(6,18,37,.72); color: var(--text-2); text-align: left; padding: 7px 9px; border-radius: 4px; }
+.step-nav button[aria-current="step"] { border-color: var(--focus); color: var(--focus); background: var(--focus-soft); }
+.step-nav span { display: block; font: 10px var(--font-mono); color: var(--muted); }
+.step-nav strong { display: block; font-size: 12px; font-weight: 500; }
+.step-nav small { display: block; font: 9px var(--font-mono); color: var(--muted); letter-spacing: .1em; }
+.transport-deck { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line-dim); background: rgba(6,18,37,.8); }
+.transport-play { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--focus); background: var(--focus-soft); color: var(--focus); }
+.transport-progress { flex: 1; display: grid; gap: 4px; }
+.transport-progress > div { display: flex; justify-content: space-between; font-size: 12px; }
+.transport-progress input { width: 100%; accent-color: var(--focus); }
+.transport-next, .transport-follow { border: 1px solid var(--line-soft); background: none; color: var(--text-2); padding: 6px 10px; border-radius: 4px; font-size: 12px; }
+.transport-follow[aria-pressed="true"] { color: var(--current); border-color: var(--current); }
