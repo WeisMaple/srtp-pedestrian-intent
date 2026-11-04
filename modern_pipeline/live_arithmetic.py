@@ -2,17 +2,33 @@
 
 The spatial/temporal indexing follows web/network.py's inspected sums, but this
 module has no web dependency and never calls a network. Only representative
-operands are copied. All floating values retain the observed tensor precision.
+operands are copied. Live operands are serialized to five decimals.
 """
+import math
+
 import torch
 from torch.nn import functional as F
 
 from modern_pipeline.model_catalog import select_representative_conv
 
+# Three complete middle-timestep rows for a 256-channel block already use about
+# 244 KiB of the 512 KiB detail budget. Capping boundary operands per selected
+# block at 4608 terms keeps the detail payload under 512 KiB and the whole frame
+# under 768 KiB for three tracks; 2304-term blocks expose boundary rows for the
+# first two tracks.
+DETAIL_BOUNDARY_TERM_LIMIT = 4608
+
 
 def _rounded(tensor):
     return [None if not torch.isfinite(value) else round(float(value), 5)
             for value in tensor.detach().reshape(-1).cpu()]
+
+
+def _scalar(value):
+    if value is None:
+        return None
+    value = float(value)
+    return round(value, 5) if math.isfinite(value) else None
 
 
 def dense_conv_row(module_index, selection, value, output, fused):
@@ -75,19 +91,18 @@ def dense_conv_row(module_index, selection, value, output, fused):
 
 
 def values(tensor):
-    # Nine significant digits round-trip float32; avoid 17-digit float64
-    # expansions that inflate live rows without adding observed precision.
-    return [float('%.9g' % value) for value in tensor.detach().reshape(-1).cpu().tolist()]
+    return [_scalar(value) for value in tensor.detach().reshape(-1).cpu()]
 
 
 def calculation(identifier, stage, title, track_id, target, inputs, weights,
                 actual, indices, axes, bias=0., connected=None, padding=None,
-                activation='identity', **metadata):
+                activation='identity', operation=None, **metadata):
     size = len(inputs)
     return {'id': identifier, 'stage': stage, 'title': title,
-            'operation': stage, 'track_id': track_id, 'target': target,
-            'inputs': inputs, 'weights': weights, 'bias': float(bias),
-            'actual': float(actual), 'activation': activation,
+            'operation': stage if operation is None else operation,
+            'track_id': track_id, 'target': target,
+            'inputs': inputs, 'weights': weights, 'bias': _scalar(bias),
+            'actual': _scalar(actual), 'activation': activation,
             'formula': metadata.pop('formula', 'y = Σᵢ(xᵢ × wᵢ) + b'),
             'input_indices': indices,
             'connected': [True] * size if connected is None else connected,
@@ -189,6 +204,8 @@ class LiveArithmetic:
             self.publish(row, 'lstm', 4)
 
     def attach_behavior(self, predictor):
+        if not self.trace.detail:
+            return
         self.predictor = predictor
         trace = self.trace
         if predictor.lstm is not None:
@@ -238,6 +255,7 @@ class LiveArithmetic:
                                      'edges': edges, 'outputs': values(tensor[batch, 0, timestep, :]),
                                      'source': 'actual_gcn_forward_same_channel_and_timestep'},
                         weight_source='actual_gcn_input_effective_adjacency_including_edge_importance',
+                        operation='graph_aggregation',
                         formula='y[0,t,w] = Σₖ Σᵥ(projected[k,0,t,v] × effective_A[k,v,w])')
                     row['metadata']['detail'] = True
                     row['metadata']['detail_block'] = index
@@ -254,16 +272,20 @@ class LiveArithmetic:
                 dilation = block.tcn[2].dilation[0]
                 weights = values(block.tcn[2].weight[0, :, :, 0])
                 middle = output.shape[2] // 2
+                terms = value.shape[1] * kernel
+                boundary_tracks = min(len(trace.track_ids),
+                                      DETAIL_BOUNDARY_TERM_LIMIT // terms)
                 for boundary, timestep in ((False, middle), (True, 0)):
                     if boundary and timestep == middle:
                         continue
+                    limit = boundary_tracks if boundary else len(trace.track_ids)
                     times = [timestep * stride - padding + offset * dilation
                              for offset in range(kernel)]
                     indices = [[channel, time, joint] for channel in range(value.shape[1])
                                for time in times]
                     pads = [time < 0 or time >= value.shape[2] for _, time, _ in indices]
                     bias = float(block.tcn[2].bias[0]) if block.tcn[2].bias is not None else 0.
-                    for batch, track_id in enumerate(trace.track_ids):
+                    for batch, track_id in enumerate(trace.track_ids[:limit]):
                         window = torch.stack([value[batch, :, time, joint] if 0 <= time < value.shape[2]
                                               else value.new_zeros(value.shape[1]) for time in times], dim=1)
                         suffix = '.boundary' if boundary else ''
@@ -276,6 +298,7 @@ class LiveArithmetic:
                             target_indices=[0, timestep, joint], term_shape=[value.shape[1], kernel],
                             kernel_size=kernel, stride=stride, convolution_padding=padding,
                             dilation=dilation, boundary=boundary,
+                            operation='temporal_convolution',
                             formula='y[0,t,v] = Σ𝚌 Σq(x[c,t×stride−pad+q×dilation,v] × W[0,c,q]) + b[0]')
                         row['metadata']['detail'] = True
                         row['metadata']['detail_block'] = index

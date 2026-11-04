@@ -57,15 +57,15 @@ class LiveArithmeticTests(unittest.TestCase):
             for receiver, actual in enumerate(graph['outputs']):
                 expected = math.fsum(calculation['inputs'][k * 17 + source] * coefficient
                                      for k, source, target, coefficient in graph['edges'] if target == receiver)
-                self.assertAlmostEqual(expected, actual, delta=max(2e-5, abs(actual) * 2e-5))
+                self.assertAlmostEqual(expected, actual, delta=max(1e-4, abs(actual) * 1e-4))
         size = len(calculation['inputs'])
         for field in ('weights', 'input_indices', 'connected', 'padding'):
             self.assertEqual(len(calculation[field]), size, (calculation['id'], field))
         total = math.fsum(x * w for x, w in zip(calculation['inputs'], calculation['weights'])) + calculation['bias']
         if calculation['activation'] == 'silu':
-            self.assertAlmostEqual(total, calculation['preactivation'], delta=2e-5 * max(1., abs(total)))
+            self.assertAlmostEqual(total, calculation['preactivation'], delta=1e-4 * max(1., abs(total)))
             total = total / (1 + math.exp(-total))
-        self.assertAlmostEqual(total, calculation['actual'], delta=2e-5 * max(1., abs(total)), msg=calculation['id'])
+        self.assertAlmostEqual(total, calculation['actual'], delta=1e-4 * max(1., abs(total)), msg=calculation['id'])
         self.assertTrue(calculation['metadata']['complete_sum'])
 
     def test_three_people_complete_sums_preserve_ids_forward_count_and_predictions(self):
