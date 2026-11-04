@@ -75,7 +75,9 @@ def dense_conv_row(module_index, selection, value, output, fused):
 
 
 def values(tensor):
-    return tensor.detach().reshape(-1).cpu().tolist()
+    # Nine significant digits round-trip float32; avoid 17-digit float64
+    # expansions that inflate live rows without adding observed precision.
+    return [float('%.9g' % value) for value in tensor.detach().reshape(-1).cpu().tolist()]
 
 
 def calculation(identifier, stage, title, track_id, target, inputs, weights,
@@ -104,15 +106,19 @@ class LiveArithmetic:
 
     def reset(self):
         self.statistics = []
-        self.projected = None
         self.pool_values = None
         self.forecast_values = []
         self.classifiers = []
         self.yolo_conv_state = {}
 
     def publish(self, row, model, stage):
+        metadata = row['metadata']
+        detail = {}
+        if metadata.get('detail'):
+            metadata.setdefault('detail_frame', self.trace.detail_index)
+            detail = {'detail': True, 'detail_block': metadata.get('detail_block')}
         self.trace._publish(model, 'flow.' + row['id'], stage, {}, None,
-                            calculations=[row], representative=True,
+                            calculations=[row], representative=True, **detail,
                             timing_note='Operands observed during the running forward; pedagogical playback has no inference timing meaning.')
 
     def begin_behavior(self, histories):
@@ -189,76 +195,99 @@ class LiveArithmetic:
             trace._hook(predictor.lstm.fc, lambda inputs, output, duration:
                         self.decoder(predictor.lstm.fc, inputs, output, duration))
         stgcn = predictor.stgcn
-        block = stgcn.st_gcn_networks[0]
         joint = int((stgcn.A != 0).sum(dim=(0, 1)).argmax())
+        states = {index: {} for index in range(len(stgcn.st_gcn_networks))}
 
-        def projected(inputs, output, duration):
-            shaped = output.reshape(output.shape[0], stgcn.A.shape[0], -1, output.shape[2], output.shape[3])
-            self.projected = shaped[:len(trace.track_ids), :, 0, output.shape[2] // 2, :].detach().clone()
+        def selected(index):
+            return self.trace.detail_frame and self.trace.detail_block == index
 
-        def spatial(inputs, output, duration):
-            tensor, adjacency = output
-            if self.projected is None:
-                return
-            weights = values(inputs[1][:, :, joint])  # Already A * edge_importance.
-            timestep = tensor.shape[2] // 2
-            # Keep original topology even when a learned coefficient is zero.
-            # Sparse [partition, source, receiver, effective coefficient] entries
-            # let the UI inspect every receiver without another model forward.
-            edge_indices = (stgcn.A != 0).nonzero().detach().cpu().tolist()
-            effective = inputs[1].detach().cpu()
-            edges = [[k, source, receiver, float(effective[k, source, receiver])]
-                     for k, source, receiver in edge_indices]
-            indices = [[partition, 0, timestep, source_joint]
-                       for partition in range(inputs[1].shape[0]) for source_joint in range(tensor.shape[3])]
-            for batch, track_id in enumerate(trace.track_ids):
-                row = calculation('stgcn.spatial.block0.track%d' % track_id, 'spatial', '第 1 块 · 骨架邻域聚合',
-                                  track_id, '通道 0 · 时刻 %d · 目标关节 %d' % (timestep, joint),
-                                  values(self.projected[batch]), weights, tensor[batch, 0, timestep, joint],
-                                  indices, ['partition', 'channel', 'time', 'joint'],
-                                  connected=[weight != 0 for weight in values(stgcn.A[:, :, joint])], block=0,
-                                  term_shape=[inputs[1].shape[0], tensor.shape[3]],
-                                  target_indices=[0, timestep, joint],
-                                  graph_slice={'channel': 0, 'timestep': timestep, 'joint_count': tensor.shape[3],
-                                               'edges': edges, 'outputs': values(tensor[batch, 0, timestep, :]),
-                                               'source': 'actual_gcn_forward_same_channel_and_timestep'},
-                                  weight_source='actual_gcn_input_effective_adjacency_including_edge_importance',
-                                  formula='y[0,t,w] = Σₖ Σᵥ(projected[k,0,t,v] × effective_A[k,v,w])')
-                self.publish(row, 'stgcn', 5)
-            self.projected = None
+        for index, block in enumerate(stgcn.st_gcn_networks):
+            def projected(inputs, output, duration, index=index):
+                if not selected(index):
+                    return
+                shaped = output.reshape(output.shape[0], stgcn.A.shape[0], -1,
+                                        output.shape[2], output.shape[3])
+                states[index]['projected'] = shaped[:len(trace.track_ids), :, 0,
+                                                     output.shape[2] // 2, :].detach().clone()
 
-        temporal_module = block.tcn[2]
+            def spatial(inputs, output, duration, index=index):
+                if not selected(index) or 'projected' not in states[index]:
+                    return
+                tensor, adjacency = output
+                weights = values(inputs[1][:, :, joint])
+                timestep = tensor.shape[2] // 2
+                edge_indices = (stgcn.A != 0).nonzero().detach().cpu().tolist()
+                effective = inputs[1].detach().cpu()
+                edges = [[k, source, receiver, float(effective[k, source, receiver])]
+                         for k, source, receiver in edge_indices]
+                indices = [[partition, 0, timestep, source_joint]
+                           for partition in range(inputs[1].shape[0])
+                           for source_joint in range(tensor.shape[3])]
+                for batch, track_id in enumerate(trace.track_ids):
+                    row = calculation(
+                        'stgcn.spatial.block%d.track%d' % (index, track_id), 'spatial',
+                        '第 %d 块 · 骨架邻域聚合' % (index + 1), track_id,
+                        '通道 0 · 时刻 %d · 目标关节 %d' % (timestep, joint),
+                        values(states[index]['projected'][batch]), weights,
+                        tensor[batch, 0, timestep, joint], indices,
+                        ['partition', 'channel', 'time', 'joint'],
+                        connected=[weight != 0 for weight in values(stgcn.A[:, :, joint])],
+                        block=index, term_shape=[inputs[1].shape[0], tensor.shape[3]],
+                        target_indices=[0, timestep, joint],
+                        graph_slice={'channel': 0, 'timestep': timestep, 'joint_count': tensor.shape[3],
+                                     'edges': edges, 'outputs': values(tensor[batch, 0, timestep, :]),
+                                     'source': 'actual_gcn_forward_same_channel_and_timestep'},
+                        weight_source='actual_gcn_input_effective_adjacency_including_edge_importance',
+                        formula='y[0,t,w] = Σₖ Σᵥ(projected[k,0,t,v] × effective_A[k,v,w])')
+                    row['metadata']['detail'] = True
+                    row['metadata']['detail_block'] = index
+                    self.publish(row, 'stgcn', 5)
+                states[index].pop('projected', None)
 
-        def temporal(inputs, output, duration):
-            value = inputs[0]
-            # Boundary output deliberately exposes real zero padding.
-            timestep = 0
-            kernel = temporal_module.kernel_size[0]
-            times = [timestep * temporal_module.stride[0] - temporal_module.padding[0]
-                     + offset * temporal_module.dilation[0] for offset in range(kernel)]
-            weights = values(temporal_module.weight[0, :, :, 0])
-            indices = [[channel, time, joint] for channel in range(value.shape[1]) for time in times]
-            padding = [time < 0 or time >= value.shape[2] for _, time, _ in indices]
-            bias = float(temporal_module.bias[0]) if temporal_module.bias is not None else 0.
-            for batch, track_id in enumerate(trace.track_ids):
-                window = torch.stack([value[batch, :, time, joint] if 0 <= time < value.shape[2]
-                                      else value.new_zeros(value.shape[1]) for time in times], dim=1)
-                row = calculation('stgcn.temporal.block0.track%d' % track_id, 'temporal', '第 1 块 · 时间卷积',
-                                  track_id, '通道 0 · 时刻 0 · 关节 %d' % joint,
-                                  values(window), weights, output[batch, 0, timestep, joint], indices,
-                                  ['channel', 'time', 'joint'], bias=bias, padding=padding,
-                                  block=0, target_indices=[0, timestep, joint], term_shape=[value.shape[1], kernel],
-                                  kernel_size=kernel, stride=temporal_module.stride[0],
-                                  convolution_padding=temporal_module.padding[0], dilation=temporal_module.dilation[0],
-                                  formula='y[0,t,v] = Σ𝚌 Σq(x[c,t×stride−pad+q×dilation,v] × W[0,c,q]) + b[0]')
-                self.publish(row, 'stgcn', 5)
+            def temporal(inputs, output, duration, index=index, block=block):
+                if not selected(index):
+                    return
+                value = inputs[0]
+                kernel = block.tcn[2].kernel_size[0]
+                stride = block.tcn[2].stride[0]
+                padding = block.tcn[2].padding[0]
+                dilation = block.tcn[2].dilation[0]
+                weights = values(block.tcn[2].weight[0, :, :, 0])
+                middle = output.shape[2] // 2
+                for boundary, timestep in ((False, middle), (True, 0)):
+                    if boundary and timestep == middle:
+                        continue
+                    times = [timestep * stride - padding + offset * dilation
+                             for offset in range(kernel)]
+                    indices = [[channel, time, joint] for channel in range(value.shape[1])
+                               for time in times]
+                    pads = [time < 0 or time >= value.shape[2] for _, time, _ in indices]
+                    bias = float(block.tcn[2].bias[0]) if block.tcn[2].bias is not None else 0.
+                    for batch, track_id in enumerate(trace.track_ids):
+                        window = torch.stack([value[batch, :, time, joint] if 0 <= time < value.shape[2]
+                                              else value.new_zeros(value.shape[1]) for time in times], dim=1)
+                        suffix = '.boundary' if boundary else ''
+                        row = calculation(
+                            'stgcn.temporal.block%d%s.track%d' % (index, suffix, track_id), 'temporal',
+                            '第 %d 块 · 时间卷积%s' % (index + 1, '（边界）' if boundary else ''), track_id,
+                            '通道 0 · 时刻 %d · 关节 %d' % (timestep, joint),
+                            values(window), weights, output[batch, 0, timestep, joint], indices,
+                            ['channel', 'time', 'joint'], bias=bias, padding=pads, block=index,
+                            target_indices=[0, timestep, joint], term_shape=[value.shape[1], kernel],
+                            kernel_size=kernel, stride=stride, convolution_padding=padding,
+                            dilation=dilation, boundary=boundary,
+                            formula='y[0,t,v] = Σ𝚌 Σq(x[c,t×stride−pad+q×dilation,v] × W[0,c,q]) + b[0]')
+                        row['metadata']['detail'] = True
+                        row['metadata']['detail_block'] = index
+                        self.publish(row, 'stgcn', 5)
+
+            trace._hook(block.gcn.conv, projected)
+            trace._hook(block.gcn, spatial)
+            trace._hook(block.tcn[2], temporal)
 
         def last_block(inputs, output, duration):
             self.pool_values = output[0][:len(trace.track_ids), 0].detach().clone()
 
-        trace._hook(block.gcn.conv, projected)
-        trace._hook(block.gcn, spatial)
-        trace._hook(temporal_module, temporal)
         trace._hook(stgcn.st_gcn_networks[-1], last_block)
 
     def pool(self, tensor):

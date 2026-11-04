@@ -88,7 +88,8 @@ class LiveArithmeticTests(unittest.TestCase):
         counts = {'decoder': 256, 'spatial': 51, 'temporal': 576, 'pool': 221, 'classifier': 256}
         for stage, count in counts.items():
             rows = [c for c in calculations if c['stage'] == stage]
-            self.assertEqual(len(rows), 3)
+            expected = 6 if stage == 'temporal' else 3
+            self.assertEqual(len(rows), expected)
             self.assertTrue(all(len(c['inputs']) == count for c in rows))
         decoder = next(c for c in calculations if c['stage'] == 'decoder')
         self.assertEqual(decoder['weights'][0], 0.)
@@ -102,6 +103,7 @@ class LiveArithmeticTests(unittest.TestCase):
                                    (predictor.stgcn.A * predictor.stgcn.edge_importance[0])[:, :, joint])
         temporal_rows = [c for c in calculations if c['stage'] == 'temporal']
         self.assertTrue(any(any(c['padding']) for c in temporal_rows))
+        self.assertTrue(any(not any(c['padding']) for c in temporal_rows))
         self.assertTrue(all(all(c['connected']) for c in temporal_rows))
         self.assertTrue(all(all(x == 0 for x, padded in zip(c['inputs'], c['padding']) if padded)
                             for c in temporal_rows))
@@ -147,7 +149,11 @@ class LiveArithmeticTests(unittest.TestCase):
         np.testing.assert_array_equal(result['probabilities'], baseline['probabilities'])
         np.testing.assert_array_equal(result['future_poses'], baseline['future_poses'])
         rows = [c for event in events for c in event.get('calculations', [])]
-        self.assertEqual(len(rows), 33)
+        self.assertEqual({c['stage'] for c in rows},
+                         {'normalization', 'decoder', 'denormalization', 'spatial',
+                          'temporal', 'pool', 'classifier'})
+        self.assertEqual(len([c for c in rows if c['stage'] == 'spatial']), 3)
+        self.assertEqual(len([c for c in rows if c['stage'] == 'temporal']), 6)
         for row in rows:
             self.assert_sum(row)
         self.assertEqual(trace.dropped['budget_events'], 0)
@@ -186,6 +192,7 @@ class LiveArithmeticTests(unittest.TestCase):
         self.assertEqual(trace.dropped['oversized_events'], 0)
         self.assertEqual(trace.dropped['detail_budget'], 0)
         rows = [c for event in events for c in event.get('calculations', [])]
+        self.assertTrue(rows)
         stages = {row['stage'] for row in rows}
         self.assertIn('yolo', stages)
         self.assertTrue({'normalization', 'decoder', 'denormalization', 'spatial',
