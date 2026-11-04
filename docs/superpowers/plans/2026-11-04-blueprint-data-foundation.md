@@ -477,13 +477,13 @@ class LiveDetailConvTests(unittest.TestCase):
         self.assertFalse(any(event.get('calculations') for event in events))
 
     def test_term_cap_module_is_skipped_and_catalog_can_mark_it(self):
-        block = Fused(in_channels=40, out_channels=4, kernel=5, padding=2)
+        block = Fused(in_channels=200, out_channels=4, kernel=5, padding=2)
         yolo, runner, callbacks = runner_for([block])
         events = []
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
-        trace.begin_frame(1, 0.0)
         attach(trace, yolo, runner, callbacks)
-        block(torch.randn(1, 40, 12, 12))
+        trace.begin_frame(1, 0.0)
+        block(torch.randn(1, 200, 12, 12))
         trace.close()
         self.assertFalse(any(event.get('calculations') for event in events))
 ```
