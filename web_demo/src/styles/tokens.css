@@ -1,0 +1,28 @@
+:root {
+    --bg-0: #061225;
+    --bg-1: #081a31;
+    --bg-2: #0b2340;
+    --line: #e8f1ff;
+    --line-soft: rgba(232, 241, 255, 0.22);
+    --line-dim: rgba(232, 241, 255, 0.09);
+    --focus: #6fd6ff;
+    --focus-soft: rgba(111, 214, 255, 0.16);
+    --current: #ffb454;
+    --current-soft: rgba(255, 180, 84, 0.16);
+    --positive: #a8e9ff;
+    --negative: #ff8a7a;
+    --muted: #5f86ab;
+    --danger: #ff6b6b;
+    --text-1: #e8f1ff;
+    --text-2: #8fb3d4;
+    --font-sans: "PingFang SC", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+    --font-mono: "SFMono-Regular", Menlo, Consolas, monospace;
+    --step-title: clamp(22px, 1.8vw, 30px);
+    --body: clamp(14px, 0.95vw, 17px);
+    --label: clamp(11px, 0.7vw, 13px);
+    --value: clamp(13px, 0.9vw, 17px);
+    --page-pad: clamp(12px, 1.4vw, 24px);
+    --rail-width: clamp(240px, 18vw, 320px);
+    --top-height: 52px;
+    color-scheme: dark;
+}
