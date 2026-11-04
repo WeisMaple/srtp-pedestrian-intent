@@ -2,6 +2,7 @@
 from collections import defaultdict
 import json
 import math
+from pathlib import Path
 import unittest
 
 import numpy as np
@@ -24,7 +25,27 @@ class LiveDetailGraphTests(unittest.TestCase):
         predictor.stats = {}
         return predictor
 
-    def test_ten_detail_frames_cover_all_blocks_with_complete_sums(self):
+    def assert_row(self, calculation):
+        block = calculation['metadata']['detail_block']
+        self.assertIsInstance(calculation['metadata']['detail_frame'], int)
+        self.assertIn(block, range(10))
+        suffix = '.boundary' if calculation['metadata'].get('boundary') else ''
+        self.assertEqual(calculation['id'], 'stgcn.%s.block%d%s.track%d' % (
+            calculation['stage'], block, suffix, calculation['track_id']))
+        self.assertEqual(calculation['operation'],
+                         'graph_aggregation' if calculation['stage'] == 'spatial'
+                         else 'temporal_convolution')
+        self.assertTrue(calculation['metadata']['complete_sum'])
+        size = len(calculation['inputs'])
+        self.assertEqual(len(calculation['weights']), size)
+        total = math.fsum(x * w for x, w in zip(calculation['inputs'], calculation['weights']))
+        total += calculation['bias']
+        if calculation['activation'] == 'silu':
+            total = total / (1 + math.exp(-total))
+        self.assertAlmostEqual(total, calculation['actual'],
+                               delta=1e-4 * max(1., abs(total)), msg=calculation['id'])
+
+    def test_two_detail_cycles_cover_all_blocks_with_complete_sums_and_rotating_boundaries(self):
         predictor = self.predictor()
         rng = np.random.default_rng(23)
         poses = rng.normal(size=(3, 50, 17, 3)).astype(np.float32)
@@ -34,7 +55,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
         try:
-            for step in range(10):
+            for step in range(20):
                 trace.begin_frame(100 + step, step)
                 trace.begin_behavior([8, 2, 91], poses)
                 result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
@@ -45,42 +66,44 @@ class LiveDetailGraphTests(unittest.TestCase):
             trace.close()
         detail_events = [event for event in events
                          if event.get('detail') and 'detail_block' in event]
-        blocks = {event['detail_block'] for event in detail_events}
-        self.assertEqual(blocks, set(range(10)))
-        self.assertEqual({event['frame'] for event in detail_events}, set(range(100, 110)))
-        rows = [c for event in events for c in event.get('calculations', [])
-                if c['stage'] in ('spatial', 'temporal')]
-        self.assertTrue(rows)
-        for row in rows:
-            block = row['metadata']['detail_block']
-            self.assertIsInstance(row['metadata']['detail_frame'], int)
-            self.assertIn(block, range(10))
-            suffix = '.boundary' if row['metadata'].get('boundary') else ''
-            self.assertEqual(row['id'], 'stgcn.%s.block%d%s.track%d'
-                             % (row['stage'], block, suffix, row['track_id']))
-            self.assertEqual(row['operation'],
-                             'graph_aggregation' if row['stage'] == 'spatial'
-                             else 'temporal_convolution')
-            self.assertTrue(row['metadata']['complete_sum'])
-            size = len(row['inputs'])
-            self.assertEqual(len(row['weights']), size)
-            total = math.fsum(x * w for x, w in zip(row['inputs'], row['weights'])) + row['bias']
-            if row['activation'] == 'silu':
-                total = total / (1 + math.exp(-total))
-            self.assertAlmostEqual(total, row['actual'], delta=1e-4 * max(1., abs(total)))
-        spatial = {(c['metadata']['detail_block'], c['track_id']) for c in rows
-                   if c['stage'] == 'spatial'}
-        middle = {(c['metadata']['detail_block'], c['track_id']) for c in rows
-                  if c['stage'] == 'temporal' and not c['metadata']['boundary']}
-        boundary = {(c['metadata']['detail_block'], c['track_id']) for c in rows
-                    if c['stage'] == 'temporal' and c['metadata']['boundary']}
+        self.assertEqual({event['frame'] for event in detail_events}, set(range(100, 120)))
+        self.assertEqual({event['detail_block'] for event in detail_events}, set(range(10)))
+        detail_rows = [(event['frame'], c) for event in events
+                       for c in event.get('calculations', [])
+                       if c['stage'] in ('spatial', 'temporal')]
+        self.assertTrue(detail_rows)
+        for _, row in detail_rows:
+            self.assert_row(row)
+        by_frame = defaultdict(list)
+        for frame, row in detail_rows:
+            by_frame[frame].append(row)
         tracks = {8, 2, 91}
-        for block in range(10):
-            self.assertEqual({track for b, track in spatial if b == block}, tracks)
-            self.assertEqual({track for b, track in middle if b == block}, tracks)
-            # 256-channel blocks cap boundary operands at two tracks (4608 terms).
-            self.assertEqual({track for b, track in boundary if b == block},
-                             tracks if block < 7 else {8, 2})
+        boundary_by_frame = {}
+        for frame in range(100, 120):
+            frame_rows = by_frame[frame]
+            self.assertEqual({c['metadata']['detail_block'] for c in frame_rows},
+                             {frame_rows[0]['metadata']['detail_block']})
+            self.assertEqual({c['track_id'] for c in frame_rows if c['stage'] == 'spatial'}, tracks)
+            self.assertEqual({c['track_id'] for c in frame_rows
+                              if c['stage'] == 'temporal' and not c['metadata']['boundary']}, tracks)
+            boundary_by_frame[frame] = {c['track_id'] for c in frame_rows
+                                        if c['stage'] == 'temporal' and c['metadata']['boundary']}
+            block = frame_rows[0]['metadata']['detail_block']
+            if block < 7:
+                self.assertEqual(boundary_by_frame[frame], tracks)
+            else:
+                self.assertEqual(len(boundary_by_frame[frame]), 2)
+        # Deep-block boundary subsets rotate with the detail cycle.
+        self.assertEqual(boundary_by_frame[107], {8, 2})
+        self.assertEqual(boundary_by_frame[117], {2, 91})
+        self.assertEqual(boundary_by_frame[108], {8, 2})
+        self.assertEqual(boundary_by_frame[118], {2, 91})
+        self.assertEqual(boundary_by_frame[109], {2, 91})
+        self.assertEqual(boundary_by_frame[119], {91, 8})
+        for block in range(7, 10):
+            seen = set().union(*(boundary_by_frame[frame] for frame in range(100, 120)
+                                 if by_frame[frame][0]['metadata']['detail_block'] == block))
+            self.assertEqual(seen, tracks)
         self.assertEqual(trace.dropped['detail_budget'], 0)
         self.assertEqual(trace.dropped['budget_events'], 0)
         self.assertEqual(trace.dropped['oversized_events'], 0)
@@ -94,11 +117,12 @@ class LiveDetailGraphTests(unittest.TestCase):
                 detail_bytes[event['frame']] += size
         self.assertLessEqual(max(detail_bytes.values()), 512 * 1024)
         self.assertLessEqual(max(frame_bytes.values()), 768 * 1024)
-        block9_frames = {event['frame'] for event in detail_events if event['detail_block'] == 9}
-        self.assertEqual(len(block9_frames), 1)
-        block9_frame = block9_frames.pop()
-        self.assertLessEqual(detail_bytes[block9_frame], 512 * 1024)
-        self.assertLessEqual(frame_bytes[block9_frame], 768 * 1024)
+        block9_frames = sorted(frame for frame, rows in by_frame.items()
+                               if rows[0]['metadata']['detail_block'] == 9)
+        self.assertEqual(block9_frames, [109, 119])
+        for frame in block9_frames:
+            self.assertLessEqual(detail_bytes[frame], 512 * 1024)
+            self.assertLessEqual(frame_bytes[frame], 768 * 1024)
 
     def test_spatial_row_contains_all_51_terms_and_graph_slice(self):
         predictor = self.predictor()
@@ -129,8 +153,108 @@ class LiveDetailGraphTests(unittest.TestCase):
         self.assertTrue(any(not c['metadata']['boundary'] and '.boundary.' not in c['id']
                             for c in temporal))
 
-    def test_detail_off_installs_no_behavior_arithmetic_hooks(self):
+    @unittest.skipUnless(
+        (Path(__file__).resolve().parents[2] / 'weights/final/stgcn.pt').is_file()
+        and (Path(__file__).resolve().parents[2] / 'weights/final/lstm.pt').is_file()
+        and (Path(__file__).resolve().parents[2] / 'weights/final/yolo26s-pose.pt').is_file(),
+        'local final reproduction weights are absent')
+    def test_deep_blocks_with_production_yolo_detail_fit_budgets(self):
+        from modern_pipeline.frontend import YOLOPoseTracker
+        directory = Path(__file__).resolve().parents[2] / 'weights/final'
+        torch.set_num_threads(2)
+        predictor = BehaviorPredictor(directory / 'stgcn.pt', directory / 'lstm.pt', device='cpu')
+        frontend = YOLOPoseTracker(directory / 'yolo26s-pose.pt', 'cpu')
+        rng = np.random.default_rng(17)
+        poses = rng.normal(size=(3, 50, 17, 3)).astype(np.float32)
+        poses[..., :2] = poses[..., :2] * 20 + 300
+        poses[..., 2] = 0.9
+        image = rng.integers(0, 256, size=(360, 640, 3), dtype=np.uint8)
+        events = []
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
+        trace.attach_behavior(predictor)
+        trace.attach_yolo(frontend.model)
+        frames = ((24, 4, {4, 5, 6, 7}), (29, 9, {0, 1, 2, 3}))
+        try:
+            # Warm-up installs the YOLO hooks; each next detail frame then
+            # selects a deep block together with four representative modules.
+            frontend(image)
+            for step, (preset, block, modules) in enumerate(frames):
+                trace.detail_index = preset
+                trace.begin_frame(60 + step, 2. + step)
+                self.assertEqual(trace.detail_block, block)
+                self.assertEqual(trace.detail_modules, modules)
+                frontend(image)
+                trace.begin_behavior([8, 2, 91], poses)
+                result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
+                trace.end_frame([{'track_id': track, 'prediction_updated': True,
+                                  'probabilities': probability.tolist()}
+                                 for track, probability in zip([8, 2, 91], result['probabilities'])])
+        finally:
+            trace.close()
+        self.assertEqual(trace.dropped['detail_budget'], 0)
+        self.assertEqual(trace.dropped['budget_events'], 0)
+        self.assertEqual(trace.dropped['oversized_events'], 0)
+        for step, (_, block, _) in enumerate(frames):
+            frame_events = [event for event in events if event['frame'] == 60 + step]
+            rows = [c for event in frame_events for c in event.get('calculations', [])]
+            self.assertEqual(len([c for c in rows if c['stage'] == 'yolo']), 4)
+            self.assertEqual({c['track_id'] for c in rows if c['stage'] == 'spatial'},
+                             {8, 2, 91})
+            self.assertEqual({c['track_id'] for c in rows
+                              if c['stage'] == 'temporal' and not c['metadata']['boundary']},
+                             {8, 2, 91})
+            # A YOLO detail frame keeps every middle row but omits boundary
+            # rows above 576 terms, which cannot fit with four YOLO rows.
+            self.assertEqual([c for c in rows
+                              if c['stage'] == 'temporal' and c['metadata']['boundary']], [])
+            for row in rows:
+                if row['stage'] in ('spatial', 'temporal'):
+                    self.assert_row(row)
+            sizes = [len(json.dumps(event, separators=(',', ':'), allow_nan=False).encode())
+                     for event in frame_events]
+            self.assertLessEqual(max(sizes), 128 * 1024)
+            self.assertLessEqual(sum(size for event, size in zip(frame_events, sizes)
+                                     if event.get('detail')), 512 * 1024)
+            self.assertLessEqual(sum(sizes), 768 * 1024)
+            self.assertEqual(frame_events[-1]['node'], 'pipeline.output')
+            self.assertEqual({row['metadata']['detail_block'] for row in rows
+                              if row['stage'] in ('spatial', 'temporal')}, {block})
+
+    def test_classifier_handles_nonfinite_logits(self):
         predictor = self.predictor()
+        events = []
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
+        try:
+            trace.begin_frame(1, 0)
+            trace.begin_behavior([5])
+            arithmetic = trace.arithmetic
+            inputs = [torch.zeros(1, 256, 1, 1)]
+            arithmetic.classifier(predictor.stgcn.fcn, inputs,
+                                  torch.tensor([[float('nan'), 0.5, float('-inf')]]))
+            row = arithmetic.classifiers[0]
+            self.assertEqual(row['metadata']['selected_class'], 1)
+            self.assertEqual(row['actual'], 0.5)
+            self.assertIsNone(row['metadata']['logits'][0])
+            self.assertIsNone(row['metadata']['logits'][2])
+            self.assertEqual(len(row['weights']), 256)
+            arithmetic.classifier(predictor.stgcn.fcn, inputs,
+                                  torch.tensor([[float('nan'), float('inf'), float('-inf')]]))
+            row = arithmetic.classifiers[0]
+            self.assertIsNone(row['metadata']['selected_class'])
+            self.assertIsNone(row['actual'])
+            self.assertIsNone(row['bias'])
+            self.assertEqual(row['metadata']['target_indices'], [])
+            self.assertEqual(len(row['weights']), 256)
+            self.assertTrue(all(weight is None for weight in row['weights']))
+            self.assertEqual(row['metadata']['logits'], [None, None, None])
+            self.assertFalse(row['metadata']['complete_sum'])
+            self.assertTrue(row['metadata']['nonfinite_logits'])
+        finally:
+            trace.close()
+
+    def test_detail_off_install_no_behavior_arithmetic_hooks_or_rows(self):
+        predictor = self.predictor()
+        poses = np.full((1, 50, 17, 3), 1., dtype=np.float32)
         events = []
         trace = LiveTrace(events.append, interval=0)
         trace.attach_behavior(predictor)
@@ -144,5 +268,12 @@ class LiveDetailGraphTests(unittest.TestCase):
                 self.assertFalse(block.tcn[2]._forward_pre_hooks)
             # Only LiveTrace's own layer-output hook remains on the final block.
             self.assertEqual(len(predictor.stgcn.st_gcn_networks[-1]._forward_hooks), 1)
+            trace.begin_frame(1, 0)
+            trace.begin_behavior([7], poses)
+            result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
+            trace.end_frame([{'track_id': 7, 'prediction_updated': True,
+                              'probabilities': result['probabilities'][0].tolist()}])
         finally:
             trace.close()
+        self.assertTrue(any(event['node'] == 'stgcn.9.output' for event in events))
+        self.assertFalse(any(event.get('calculations') for event in events))

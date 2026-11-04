@@ -287,14 +287,16 @@ class LiveTrace:
 
         def pool(_module, inputs):
             if self.active:
-                self.arithmetic.pool(inputs[0])
+                if self.detail:
+                    self.arithmetic.pool(inputs[0])
                 self._publish('stgcn', 'stgcn.pool', 5, {
                     'output': sample_tensor(inputs[0], ['track', 'channel', 'y', 'x'], [3, 16, 1, 1], (0, 1))},
                     None, operation='global_pool', timing_note='Captured at classifier input; functional pool has no module duration.')
         self.handles.append(predictor.stgcn.fcn.register_forward_pre_hook(pool))
 
         def logits(inputs, output, duration):
-            self.arithmetic.classifier(predictor.stgcn.fcn, inputs, output)
+            if self.detail:
+                self.arithmetic.classifier(predictor.stgcn.fcn, inputs, output)
             self._publish('stgcn', 'stgcn.logits', 5, {
                 'output': sample_tensor(output.reshape(output.shape[0], -1), ['track', 'class'], [3, 3], (0, 1))}, duration,
                           operation='classifier_logits')

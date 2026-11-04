@@ -2,7 +2,9 @@
 
 The spatial/temporal indexing follows web/network.py's inspected sums, but this
 module has no web dependency and never calls a network. Only representative
-operands are copied. Live operands are serialized to five decimals.
+operands are copied. Every live operand, scalar bias, and actual value is rounded
+to five decimals; non-finite values become null. Probability provenance is kept
+at full precision.
 """
 import math
 
@@ -13,10 +15,13 @@ from modern_pipeline.model_catalog import select_representative_conv
 
 # Three complete middle-timestep rows for a 256-channel block already use about
 # 244 KiB of the 512 KiB detail budget. Capping boundary operands per selected
-# block at 4608 terms keeps the detail payload under 512 KiB and the whole frame
-# under 768 KiB for three tracks; 2304-term blocks expose boundary rows for the
-# first two tracks.
+# block at 4608 terms keeps a behavior-only detail frame under both limits with
+# three tracks; 2304-term blocks receive boundary rows for two rotating tracks.
+# Frames that also carry YOLO detail rows omit boundary rows above 576 terms
+# (measured: 1152 terms plus four YOLO rows exceeds the 768 KiB frame). The
+# Task 7 benchmark remains the production measurement for the combined frame.
 DETAIL_BOUNDARY_TERM_LIMIT = 4608
+DETAIL_YOLO_BOUNDARY_MAX_TERMS = 576
 
 
 def _rounded(tensor):
@@ -97,6 +102,8 @@ def values(tensor):
 def calculation(identifier, stage, title, track_id, target, inputs, weights,
                 actual, indices, axes, bias=0., connected=None, padding=None,
                 activation='identity', operation=None, **metadata):
+    inputs = [_scalar(value) for value in inputs]
+    weights = [_scalar(value) for value in weights]
     size = len(inputs)
     return {'id': identifier, 'stage': stage, 'title': title,
             'operation': stage if operation is None else operation,
@@ -235,7 +242,7 @@ class LiveArithmetic:
                 timestep = tensor.shape[2] // 2
                 edge_indices = (stgcn.A != 0).nonzero().detach().cpu().tolist()
                 effective = inputs[1].detach().cpu()
-                edges = [[k, source, receiver, float(effective[k, source, receiver])]
+                edges = [[k, source, receiver, _scalar(effective[k, source, receiver])]
                          for k, source, receiver in edge_indices]
                 indices = [[partition, 0, timestep, source_joint]
                            for partition in range(inputs[1].shape[0])
@@ -275,17 +282,28 @@ class LiveArithmetic:
                 terms = value.shape[1] * kernel
                 boundary_tracks = min(len(trace.track_ids),
                                       DETAIL_BOUNDARY_TERM_LIMIT // terms)
+                if self.trace.detail_modules and terms > DETAIL_YOLO_BOUNDARY_MAX_TERMS:
+                    # A frame that already carries YOLO rows cannot also fit a
+                    # deep-block boundary example; keep every middle row instead.
+                    boundary_tracks = 0
+                tracks = list(enumerate(trace.track_ids))
                 for boundary, timestep in ((False, middle), (True, 0)):
                     if boundary and timestep == middle:
                         continue
-                    limit = boundary_tracks if boundary else len(trace.track_ids)
+                    if boundary and boundary_tracks:
+                        shift = (self.trace.detail_index // 10) % len(trace.track_ids)
+                        chosen = (tracks[shift:] + tracks[:shift])[:boundary_tracks]
+                    elif boundary:
+                        chosen = []
+                    else:
+                        chosen = tracks
                     times = [timestep * stride - padding + offset * dilation
                              for offset in range(kernel)]
                     indices = [[channel, time, joint] for channel in range(value.shape[1])
                                for time in times]
                     pads = [time < 0 or time >= value.shape[2] for _, time, _ in indices]
                     bias = float(block.tcn[2].bias[0]) if block.tcn[2].bias is not None else 0.
-                    for batch, track_id in enumerate(trace.track_ids[:limit]):
+                    for batch, track_id in chosen:
                         window = torch.stack([value[batch, :, time, joint] if 0 <= time < value.shape[2]
                                               else value.new_zeros(value.shape[1]) for time in times], dim=1)
                         suffix = '.boundary' if boundary else ''
@@ -318,14 +336,20 @@ class LiveArithmetic:
             return
         times, joints = self.pool_values.shape[1:]
         count = times * joints
+        # A five-decimal uniform weight cannot sum to one; express the mean as
+        # the sum of per-term scaled contributions instead, so every operand is
+        # exactly five decimals and the weights are exactly one.
+        weights = [1.] * count
         for batch, track_id in enumerate(self.trace.track_ids):
             row = calculation('stgcn.pool.track%d' % track_id, 'pool', '全局平均池化', track_id,
-                              '第 10 块输出 · 通道 0 的平均值', values(self.pool_values[batch]),
-                              [1. / count] * count, tensor[batch, 0, 0, 0],
+                              '第 10 块输出 · 通道 0 的平均值',
+                              [value / count for value in values(self.pool_values[batch])],
+                              weights, tensor[batch, 0, 0, 0],
                               [[0, time, joint] for time in range(times) for joint in range(joints)],
                               ['channel', 'time', 'joint'], target_indices=[0],
                               term_shape=[times, joints], divisor=count,
-                              formula='pool[0] = Σt Σv(x[0,t,v] × 1/(T×V))')
+                              weight_rounding='operands_scaled_by_divisor',
+                              formula='pool[0] = Σt Σv((x[0,t,v] / (T×V)) × 1)')
             self.publish(row, 'stgcn', 5)
         self.pool_values = None
 
@@ -333,15 +357,28 @@ class LiveArithmetic:
         self.classifiers = []
         for batch, track_id in enumerate(self.trace.track_ids):
             logits = values(output[batch])
-            selected = max(range(len(logits)), key=logits.__getitem__)
-            weights = values(module.weight[selected, :, 0, 0])
-            bias = float(module.bias[selected]) if module.bias is not None else 0.
+            operands = values(inputs[0][batch, :, 0, 0])
+            finite = [(index, value) for index, value in enumerate(logits) if value is not None]
+            if finite:
+                selected, actual = max(finite, key=lambda item: item[1])
+                weights = values(module.weight[selected, :, 0, 0])
+                bias = float(module.bias[selected]) if module.bias is not None else 0.
+                target = '类别 %d 的 logit' % selected
+                targets = [selected]
+            else:
+                selected = actual = bias = None
+                weights = [None] * len(operands)
+                target = '类别 logit（全部非有限）'
+                targets = []
             row = calculation('stgcn.classifier.track%d' % track_id, 'classifier', '意图分类输出', track_id,
-                              '类别 %d 的 logit' % selected, values(inputs[0][batch, :, 0, 0]),
-                              weights, logits[selected], [[i] for i in range(len(weights))], ['channel'],
-                              bias=bias, target_indices=[selected], selected_class=selected,
+                              target, operands, weights, actual,
+                              [[i] for i in range(len(operands))], ['channel'],
+                              bias=bias, target_indices=targets, selected_class=selected,
                               logits=logits, class_labels=['irrelevant', 'not crossing', 'crossing'],
                               formula='logit[class] = Σc(pool[c] × W[class,c]) + b[class]')
+            if not finite:
+                row['metadata']['complete_sum'] = False
+                row['metadata']['nonfinite_logits'] = True
             self.classifiers.append(row)
 
     def finish(self, tracks):
