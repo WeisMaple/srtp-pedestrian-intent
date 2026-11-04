@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLiveState, reduceLiveEvent, setLiveFrozen, visibleLiveState, normalizeLiveNodes } from '../src/liveComputation.js';
+import { mergeDetail } from '../src/domain/model.js';
 
 const event = (seq, frame, node = 'yolo.0', extra = {}) => ({
     seq, job_id: 'job-a', frame, time_seconds: frame / 25, model: 'yolo', node,
@@ -155,4 +156,45 @@ test('probabilities require an actual current-frame prediction for the selected 
     ] };
     assert.deepEqual(normalizeLiveNodes(snapshot, 42)['stgcn.probabilities'].values, [0.1, 0.2, 0.7]);
     assert.equal(normalizeLiveNodes(snapshot, 7)['stgcn.probabilities'], undefined);
+});
+
+test('detail rows merge into a live snapshot without replacing other modules', () => {
+    const snapshot = { frame: 3, details: { yolo: { 0: { id: 'yolo.conv.0' } }, stgcn: {} } };
+    const payload = { frame: 3, calculations: [
+        { stage: 'yolo', module: 4, id: 'yolo.conv.4', metadata: { detail: true } },
+        { stage: 'spatial', id: 'stgcn.spatial.block1.track1', metadata: { detail: true, detail_block: 1 } },
+    ] };
+    const details = mergeDetail(snapshot, payload);
+    assert.equal(details.yolo[0].id, 'yolo.conv.0');
+    assert.equal(details.yolo[4].id, 'yolo.conv.4');
+    assert.equal(details.stgcn[1].length, 1);
+    assert.deepEqual(mergeDetail(snapshot, { frame: 4, calculations: payload.calculations }), snapshot.details);
+});
+
+test('reduction carries snapshot details and merges same-frame computation rows', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'snapshot', {
+        seq: 1, job_id: 'job-a', frame: 3, nodes: {},
+        details: { yolo: { 0: { id: 'yolo.conv.0' } }, stgcn: {} },
+    }, 1000);
+    state = reduceLiveEvent(state, 'computation', event(2, 3, 'flow.yolo', {
+        calculations: [{ stage: 'yolo', module: 4, id: 'yolo.conv.4', metadata: { detail: true } }],
+    }), 1100);
+    assert.equal(state.snapshot.details.yolo[0].id, 'yolo.conv.0');
+    assert.equal(state.snapshot.details.yolo[4].id, 'yolo.conv.4');
+    assert.equal(reduceLiveEvent(state, 'computation', event(3, 4, 'pipeline.frame'), 1200).snapshot.details.yolo[4].id, 'yolo.conv.4');
+});
+
+test('freeze holds detail rows while later frames keep merging into the live state', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'snapshot', {
+        seq: 1, job_id: 'job-a', frame: 3, nodes: {},
+        details: { yolo: { 0: { id: 'yolo.conv.0' } }, stgcn: {} },
+    }, 1000);
+    state = setLiveFrozen(state, true);
+    state = reduceLiveEvent(state, 'computation', event(2, 3, 'flow.yolo', {
+        calculations: [{ stage: 'yolo', module: 4, id: 'yolo.conv.4', metadata: { detail: true } }],
+    }), 1100);
+    const held = visibleLiveState(state);
+    assert.equal(held.snapshot.details.yolo[0].id, 'yolo.conv.0');
+    assert.equal(held.snapshot.details.yolo[4], undefined);
+    assert.equal(state.snapshot.details.yolo[4].id, 'yolo.conv.4');
 });

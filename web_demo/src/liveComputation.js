@@ -1,10 +1,12 @@
+import { mergeDetail } from './domain/model.js';
+
 const ACTIVITY_LIMIT = 60;
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 export function createLiveState(jobId = null) {
     return { jobId, snapshot: null, latestEvent: null, events: [], latestSeq: -1,
         receivedAt: null, connection: 'idle', error: '', frozen: false, held: null,
-        awaitingSnapshot: false };
+        awaitingSnapshot: false, details: { yolo: {}, stgcn: {} } };
 }
 
 function appendActivity(events, event) {
@@ -41,7 +43,8 @@ export function reduceLiveEvent(state, type, payload, receivedAt = Date.now()) {
         const nodes = currentNodes(payload.nodes, payload.frame, state.jobId, receivedAt);
         const latestEvent = Object.values(nodes).reduce((latest, node) =>
             !latest || node.seq > latest.seq ? node : latest, null);
-        return { ...next, snapshot: { ...payload, nodes, tracks: payload.tracks || [] },
+        return { ...next, snapshot: { ...payload, nodes, tracks: payload.tracks || [],
+                details: payload.details || { yolo: {}, stgcn: {} } },
             latestEvent, awaitingSnapshot: false };
     }
     if (type === 'terminal') {
@@ -58,6 +61,7 @@ export function reduceLiveEvent(state, type, payload, receivedAt = Date.now()) {
         captured_at_ms: payload.captured_at_ms,
         nodes: { ...(previous.nodes || {}), [payload.node]: row },
         tracks: payload.tracks || previous.tracks || [],
+        details: mergeDetail(state.snapshot, payload),
         dropped: { ...(state.snapshot?.dropped || {}), ...(payload.dropped || {}) },
         sampling: payload.sampling || state.snapshot?.sampling,
     } };

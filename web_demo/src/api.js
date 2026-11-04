@@ -12,6 +12,9 @@ export async function request(path, options = {}) {
 }
 
 export const jobUrl = (id, suffix = '') => `/api/jobs/${encodeURIComponent(id)}${suffix}`;
+export const modelUrl = () => '/api/model';
+export const yoloConvUrl = (id, frame, module) =>
+    jobUrl(id, `/yolo-conv?frame=${encodeURIComponent(frame)}&module=${encodeURIComponent(module)}`);
 export const ACTIVE_STATUSES = new Set(['loading', 'running', 'encoding']);
 export const STATUS_LABELS = {
     ready: '等待开始', loading: '正在加载模型', running: '正在分析', encoding: '正在编码结果',
