@@ -1,0 +1,48 @@
+.workbench { height: 100%; display: grid; grid-template-columns: minmax(320px, .9fr) 1.1fr; grid-template-rows: 1fr auto; gap: 24px; padding: 40px var(--page-pad); overflow: auto; }
+.workbench-copy { align-self: center; max-width: 560px; }
+.workbench-kicker { color: var(--focus); font-size: 11px; letter-spacing: .16em; }
+.workbench h1 { font-size: clamp(34px, 3.4vw, 52px); font-weight: 500; margin: 12px 0 10px; letter-spacing: .02em; }
+.workbench-copy > p { color: var(--text-2); max-width: 460px; }
+.workbench-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0; }
+.blueprint-button.primary { background: var(--focus); color: var(--bg-0); }
+.drop-zone { border: 1px dashed var(--line-soft); border-radius: 6px; padding: 22px; display: grid; gap: 4px; color: var(--text-2); }
+.drop-zone.dragging { border-color: var(--focus); background: var(--focus-soft); }
+.drop-zone strong { color: var(--text-1); font-weight: 500; }
+.workbench-light-table { align-self: center; overflow: hidden; }
+.workbench-light-table video { width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000; display: block; }
+.light-table-empty { aspect-ratio: 16/9; display: grid; place-content: center; gap: 6px; text-align: center; color: var(--text-2); border-bottom: 1px solid var(--line-dim); }
+.light-table-empty span { color: var(--focus); font-size: 11px; letter-spacing: .18em; }
+.light-table-caption { padding: 8px 10px; color: var(--muted); font-size: 11px; }
+.workbench-steps { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.workbench-steps > div { border-top: 1px solid var(--line-soft); padding-top: 8px; display: grid; gap: 3px; }
+.workbench-steps span { color: var(--focus); font-size: 10px; }
+.workbench-steps b { font-size: 12px; font-weight: 500; }
+.workbench-steps i { height: 1px; background: linear-gradient(90deg, var(--line-soft), transparent); }
+.workbench-error { color: var(--danger); }
+.workbench-job { display: grid; gap: 3px; }
+.workbench-job .mono { color: var(--muted); font-size: 11px; }
+.workbench-job strong { font-weight: 500; }
+.job-progress { height: 3px; background: var(--line-dim); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.job-progress i { display: block; height: 100%; background: var(--focus); transform-origin: left; }
+.stage-step-tools { position: absolute; top: 76px; left: 12px; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line-dim); border-radius: 4px; background: rgba(6, 18, 37, .78); }
+.stage-step-tools label { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; }
+.stage-step-tools select { background: var(--bg-1); border: 1px solid var(--line-soft); border-radius: 3px; padding: 4px 6px; color: var(--text-1); font-size: 12px; }
+.stage-step-tools small { color: var(--muted); font-size: 10px; }
+.results-page { padding: 32px var(--page-pad); overflow: auto; height: 100%; }
+.results-page header { display: flex; align-items: end; gap: 16px; margin-bottom: 20px; }
+.results-page header span { color: var(--focus); font-size: 11px; letter-spacing: .16em; }
+.results-page h1 { margin: 0; font-size: 32px; font-weight: 500; }
+.results-page header button { margin-left: auto; }
+.results-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+.results-video { min-height: 240px; }
+.results-video video { width: 100%; display: block; background: #000; }
+.results-video p { margin: 0; padding: 24px; color: var(--text-2); }
+.results-metrics { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.results-metrics > div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line-dim); padding-bottom: 8px; }
+.results-metrics span { color: var(--text-2); }
+.results-metrics b { font-family: var(--font-mono); font-weight: 500; }
+.results-metrics .downloads { display: grid; gap: 6px; border: 0; }
+.downloads a { color: var(--focus); }
+.empty-state { padding: 24px; display: grid; gap: 6px; }
+.empty-state strong { font-weight: 500; }
+.empty-state p { margin: 0; color: var(--text-2); }
