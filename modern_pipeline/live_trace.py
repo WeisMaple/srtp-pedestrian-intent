@@ -12,16 +12,20 @@ import time
 
 
 TERMINAL = {'completed', 'failed', 'cancelled'}
-# Actual YOLO plus three people's complete representative sums exceed 512 KiB
-# (frame-60 audit dropped two classifier records). Keep each event at 64 KiB
-# and the ring at 4 MiB; 768 KiB admits the measured ~535 KiB complete frame.
+# Actual YOLO detail plus three people's complete representative sums exceed
+# 512 KiB (frame-60 audit dropped two classifier records). Keep each event at
+# 128 KiB, cap detail rows at 512 KiB per frame, and keep the ring at 4 MiB;
+# 768 KiB admits the measured behavior frame plus its detail rows.
 SAMPLING = {'max_frames_per_second': 4, 'max_tracks': 3,
             'yolo_channels': 4, 'yolo_grid': [8, 8],
             'lstm_hidden_units': 16, 'lstm_layers': 10,
             'stgcn_channels': 4, 'stgcn_times': 1, 'stgcn_joints': 17,
             'ring_max_events': 512, 'ring_max_bytes': 4 * 1024 * 1024,
             'frame_max_events': 128, 'frame_max_bytes': 768 * 1024,
-            'arithmetic': 'complete representative outputs; first YOLO convolution, first decoder round, first graph block; up to 3 tracks',
+            'detail_interval_seconds': 1.0, 'detail_yolo_modules': 4, 'detail_stgcn_blocks': 1,
+            'detail_frame_max_bytes': 768 * 1024, 'detail_calculation_max_bytes': 512 * 1024,
+            'detail_max_terms': 4096,
+            'arithmetic': 'complete representative outputs; representative YOLO convolutions, first decoder round, first graph block; up to 3 tracks',
             'source': 'live_forward_hooks', 'timing': 'host_wall_including_nested_observers',
             'note': 'Actual sampled values; unsampled frames and expired replay events are counted. No inference replay.'}
 
@@ -73,11 +77,20 @@ def first_tensor(value):
 
 
 class LiveTrace:
-    def __init__(self, emit, interval=0.25):
+    def __init__(self, emit, interval=0.25, detail=False, detail_interval=1.0):
         from .live_arithmetic import LiveArithmetic
         self.emit = emit
         self.arithmetic = LiveArithmetic(self)
         self.interval = max(0.25, interval) if interval else 0
+        self.detail = bool(detail)
+        self.detail_interval = max(0.0, float(detail_interval))
+        self.detail_last = float('-inf')
+        self.detail_index = 0
+        self.detail_frame = False
+        self.detail_modules = set()
+        self.detail_block = 0
+        self.detail_bytes = 0
+        self.yolo_module_count = 0
         self.last_capture = float('-inf')
         self.active = False
         self.frame = -1
@@ -91,7 +104,8 @@ class LiveTrace:
         self.yolo_callback = None
         self.yolo_module = None
         self.predictor = None
-        self.dropped = {'capture_frames': 0, 'oversized_events': 0, 'budget_events': 0}
+        self.dropped = {'capture_frames': 0, 'oversized_events': 0, 'budget_events': 0,
+                        'detail_budget': 0}
         self.frame_started = 0
         self.frame_events = self.frame_bytes = 0
 
@@ -107,6 +121,20 @@ class LiveTrace:
         self.last_capture = now
         self.frame_started = now
         self.frame_events = self.frame_bytes = 0
+        now = time.perf_counter()
+        self.detail_frame = self.detail and now - self.detail_last >= self.detail_interval
+        if self.detail_frame:
+            self.detail_last = now
+            self.detail_index += 1
+            count = self.yolo_module_count
+            if count:
+                self.detail_modules = {(self.detail_index * 4 + i) % count for i in range(4)}
+            else:
+                self.detail_modules = set()
+            self.detail_block = (self.detail_index - 1) % 10
+        else:
+            self.detail_modules = set()
+        self.detail_bytes = 0
         self._publish('pipeline', 'pipeline.frame', 1, {}, None, phase='start',
                       dropped=dict(self.dropped), sampling=SAMPLING)
         return True
@@ -155,7 +183,12 @@ class LiveTrace:
                  'timing': 'host_wall_including_nested_observers', 'tensors': tensors}
         event.update(extra)
         size = len(json.dumps(event, allow_nan=False, separators=(',', ':')).encode('utf-8'))
-        if size > 64 * 1024:
+        if event.get('detail') and self.detail_bytes + size > SAMPLING['detail_calculation_max_bytes']:
+            self.dropped['detail_budget'] = self.dropped.get('detail_budget', 0) + 1
+            return
+        if event.get('detail'):
+            self.detail_bytes += size
+        if size > 128 * 1024:
             self.dropped['oversized_events'] += 1
             return
         if self.frame_events >= SAMPLING['frame_max_events'] or self.frame_bytes + size > SAMPLING['frame_max_bytes']:
@@ -197,6 +230,7 @@ class LiveTrace:
                 handle.remove()
             self.yolo_handles.clear()
             self.yolo_module = network
+            self.yolo_module_count = len(network.model)
             fused = bool(getattr(network, 'is_fused', lambda: False)())
             self.arithmetic.attach_yolo(network, fused, guard=lambda: bool(self.predictor.done_warmup))
             for index, module in enumerate(network.model):
@@ -211,10 +245,11 @@ class LiveTrace:
                     else:
                         sampled = sample_tensor(tensor, ['axis%d' % i for i in range(tensor.ndim)],
                                                 [4] * tensor.ndim, tuple(range(tensor.ndim)))
+                    detail = bool(self.detail_frame and index in self.detail_modules)
                     self._publish('yolo', 'yolo.%d' % index, 1, {'output': sampled}, duration,
                                   module_type=type(module).__name__, from_nodes=getattr(module, 'f', -1),
-                                  fused=fused, warmup=False,
-                                  calculations=self.arithmetic.yolo_output(tensor) if index == 0 else [])
+                                  fused=fused, warmup=False, detail=detail,
+                                  calculations=self.arithmetic.yolo_module(index) if detail else [])
                 self._hook(module, capture, guard=lambda: bool(self.predictor.done_warmup),
                            handles=self.yolo_handles)
 

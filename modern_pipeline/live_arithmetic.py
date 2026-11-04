@@ -4,6 +4,60 @@ The spatial/temporal indexing follows web/network.py's inspected sums, but this
 module has no web dependency and never calls a network. Only representative
 operands are copied. All floating values retain the observed tensor precision.
 """
+import torch
+from torch.nn import functional as F
+
+from modern_pipeline.model_catalog import select_representative_conv
+
+
+def _rounded(tensor):
+    return [None if not torch.isfinite(value) else round(float(value), 5)
+            for value in tensor.detach().reshape(-1).cpu()]
+
+
+def dense_conv_row(module_index, selection, value, output, fused):
+    conv = selection.conv
+    y, x = output.shape[-2] // 2, output.shape[-1] // 2
+    kh, kw = conv.kernel_size
+    sy, sx = conv.stride
+    py, px = conv.padding
+    dy, dx = conv.dilation
+    padded = F.pad(value, (px, px, py, py))
+    patch = padded[0, :, y * sy:y * sy + dy * (kh - 1) + 1:dy,
+                   x * sx:x * sx + dx * (kw - 1) + 1:dx]
+    weights = conv.weight[0]
+    raw = output[0, 0, y, x]
+    activation = selection.activation
+    if activation == 'batch_norm_silu':
+        bn = selection.parent.bn
+        channel = 0
+        activated = (raw - bn.running_mean[channel]) / torch.sqrt(bn.running_var[channel] + bn.eps)
+        activated = activated * bn.weight[channel] + bn.bias[channel]
+        activated = F.silu(activated)
+    elif activation == 'silu':
+        activated = F.silu(raw)
+    else:
+        activated = raw
+    bias = float(conv.bias[0]) if conv.bias is not None else 0.
+    return {
+        'id': 'yolo.conv.%d' % module_index, 'stage': 'yolo',
+        'module': int(module_index), 'fused': bool(fused),
+        'title': 'YOLO 模块 %d · %s 代表卷积' % (module_index, type(selection.parent).__name__),
+        'operation': 'dense_conv', 'track_id': None,
+        'target': {'channel': 0, 'y': y, 'x': x},
+        'term_axes': ['in_channel', 'kernel_y', 'kernel_x'],
+        'term_shape': [int(conv.in_channels), int(kh), int(kw)],
+        'inputs': _rounded(patch), 'weights': _rounded(weights), 'bias': bias,
+        'actual': None if not torch.isfinite(activated) else float(activated),
+        'activation': activation, 'formula': 'y = activation(Σc Σky Σkx(x × W) + b)',
+        'input_indices': [], 'connected': [True] * int(patch.numel()),
+        'padding': [False] * int(patch.numel()),
+        'metadata': {'complete_sum': True, 'representative': True, 'detail': True,
+                     'module_path': selection.path, 'target_indices': [0, y, x],
+                     'input_shape': list(value.shape), 'stride': list(conv.stride),
+                     'padding': list(conv.padding), 'dilation': list(conv.dilation),
+                     'fused': bool(fused), 'term_count': int(patch.numel()),
+                     'source': 'actual_forward_hooks'}}
 
 
 def values(tensor):
@@ -30,6 +84,8 @@ class LiveArithmetic:
     def __init__(self, trace):
         self.trace = trace
         self.predictor = None
+        self.yolo_fused = False
+        self.yolo_conv_state = {}
         self.reset()
 
     def reset(self):
@@ -38,7 +94,7 @@ class LiveArithmetic:
         self.pool_values = None
         self.forecast_values = []
         self.classifiers = []
-        self.yolo_value = None
+        self.yolo_conv_state = {}
 
     def publish(self, row, model, stage):
         self.trace._publish(model, 'flow.' + row['id'], stage, {}, None,
@@ -49,7 +105,6 @@ class LiveArithmetic:
         self.statistics = []
         if not self.trace.active or histories is None or self.predictor is None or self.predictor.lstm is None:
             return
-        import torch
         predictor = self.predictor
         poses = torch.as_tensor(histories[:len(self.trace.track_ids)], dtype=torch.float32,
                                 device=predictor.device)
@@ -161,7 +216,6 @@ class LiveArithmetic:
         temporal_module = block.tcn[2]
 
         def temporal(inputs, output, duration):
-            import torch
             value = inputs[0]
             # Boundary output deliberately exposes real zero padding.
             timestep = 0
@@ -237,45 +291,23 @@ class LiveArithmetic:
         self.reset()
 
     def attach_yolo(self, network, fused, guard):
-        import torch
-        outer = network.model[0]
-        direct = isinstance(outer, torch.nn.Conv2d)
-        module = outer if direct else getattr(outer, 'conv', None)
-        activation = 'identity' if direct else ('silu' if isinstance(getattr(outer, 'act', None), torch.nn.SiLU) else None)
-        if (not isinstance(module, torch.nn.Conv2d) or module.groups != 1
-                or module.in_channels != 3 or module.kernel_size != (3, 3)
-                or activation is None or (not direct and hasattr(outer, 'bn'))):
-            return
+        self.yolo_fused = fused
+        self.yolo_conv_state = {}
+        for index, module in enumerate(network.model):
+            selection = select_representative_conv(module, fused=fused)
+            if selection is None:
+                continue
 
-        def capture(inputs, output, duration):
-            value = inputs[0]
-            target_y, target_x = output.shape[2] // 2, output.shape[3] // 2
-            indices = [[channel, target_y * module.stride[0] - module.padding[0] + y * module.dilation[0],
-                        target_x * module.stride[1] - module.padding[1] + x * module.dilation[1]]
-                       for channel in range(3) for y in range(3) for x in range(3)]
-            padded = [y < 0 or y >= value.shape[2] or x < 0 or x >= value.shape[3]
-                      for channel, y, x in indices]
-            operands = [0. if pad else float(value[0, channel, y, x])
-                        for (channel, y, x), pad in zip(indices, padded)]
-            bias = float(module.bias[0]) if module.bias is not None else 0.
-            self.yolo_value = calculation('yolo.conv0', 'yolo', 'YOLO 首层卷积与激活', None,
-                                          '输出通道 0 · 位置 (%d, %d)' % (target_y, target_x), operands, values(module.weight[0]),
-                                          output[0, 0, target_y, target_x], indices, ['RGB_channel', 'y', 'x'],
-                                          bias=bias, padding=padded, activation=activation,
-                                          target_indices=[0, target_y, target_x], term_shape=[3, 3, 3], fused=fused,
-                                          input_shape=list(value.shape), stride=list(module.stride),
-                                          convolution_padding=list(module.padding),
-                                          coordinate_system='resized_letterboxed_rgb_normalized_0_to_1',
-                                          formula='y = SiLU(Σc Σdy Σdx(x[c,y+dy,x+dx] × W[0,c,dy,dx]) + b[0])'
-                                          if activation == 'silu' else 'y = Σᵢ(xᵢ × wᵢ) + b')
-            self.yolo_value['preactivation'] = float(output[0, 0, target_y, target_x])
+            def capture(inputs, output, duration, index=index, selection=selection):
+                if not self.trace.active or not self.trace.detail_frame or index not in self.trace.detail_modules:
+                    return
+                # The row must be built before the parent's in-place activation
+                # mutates the convolution output.
+                self.yolo_conv_state[index] = dense_conv_row(
+                    index, selection, inputs[0], output, self.yolo_fused)
 
-        self.trace._hook(module, capture, guard=guard, handles=self.trace.yolo_handles)
+            self.trace._hook(selection.conv, capture, guard=guard, handles=self.trace.yolo_handles)
 
-    def yolo_output(self, output):
-        row, self.yolo_value = self.yolo_value, None
-        if row is None:
-            return []
-        channel, y, x = row['metadata']['target_indices']
-        row['actual'] = float(output[0, channel, y, x])
-        return [row]
+    def yolo_module(self, index):
+        row = self.yolo_conv_state.pop(index, None)
+        return [] if row is None else [row]

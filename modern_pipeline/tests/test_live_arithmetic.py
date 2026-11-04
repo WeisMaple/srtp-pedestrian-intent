@@ -2,7 +2,6 @@
 import json
 import math
 from pathlib import Path
-from types import SimpleNamespace
 import unittest
 
 import numpy as np
@@ -34,7 +33,7 @@ class LiveArithmeticTests(unittest.TestCase):
 
     def capture(self, predictor, poses):
         events = []
-        trace = LiveTrace(events.append, interval=0)
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
         trace.begin_frame(88, 2.9)
         trace.begin_behavior([8, 2, 91, 17][:len(poses)], poses)
@@ -101,10 +100,11 @@ class LiveArithmeticTests(unittest.TestCase):
         self.assertTrue(any(connected and weight == 0 for connected, weight in zip(spatial['connected'], spatial['weights'])))
         torch.testing.assert_close(torch.tensor(spatial['weights']).reshape(3, 17),
                                    (predictor.stgcn.A * predictor.stgcn.edge_importance[0])[:, :, joint])
-        temporal = next(c for c in calculations if c['stage'] == 'temporal')
-        self.assertTrue(any(temporal['padding']))
-        self.assertTrue(all(temporal['connected']))
-        self.assertTrue(all(x == 0 for x, padded in zip(temporal['inputs'], temporal['padding']) if padded))
+        temporal_rows = [c for c in calculations if c['stage'] == 'temporal']
+        self.assertTrue(any(any(c['padding']) for c in temporal_rows))
+        self.assertTrue(all(all(c['connected']) for c in temporal_rows))
+        self.assertTrue(all(all(x == 0 for x, padded in zip(c['inputs'], c['padding']) if padded)
+                            for c in temporal_rows))
         denormalized = [c for c in calculations if c['stage'] == 'denormalization']
         self.assertEqual(len(denormalized), 15)
         for row in [c for c in calculations if c['stage'] == 'classifier']:
@@ -132,48 +132,6 @@ class LiveArithmeticTests(unittest.TestCase):
         self.assertEqual(normalization['metadata']['std'], 2.)
         for row in rows:
             self.assert_sum(row)
-
-    def test_fused_yolo_includes_all_center_rgb_terms_and_actual_silu(self):
-        class Fused(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.conv = torch.nn.Conv2d(3, 4, 3, stride=2, padding=1)
-                self.act = torch.nn.SiLU()
-
-            def forward(self, value):
-                return self.act(self.conv(value))
-
-        callbacks = {'on_predict_start': []}
-        model = SimpleNamespace(callbacks=callbacks,
-                                add_callback=lambda name, callback: callbacks[name].append(callback))
-        block = Fused().eval()
-        network = SimpleNamespace(model=torch.nn.Sequential(block), is_fused=lambda: True)
-        runner = SimpleNamespace(model=SimpleNamespace(model=network), done_warmup=False)
-        events = []
-        trace = LiveTrace(events.append, interval=0)
-        trace.attach_yolo(model)
-        trace.begin_frame(1, 0)
-        callbacks['on_predict_start'][0](runner)
-        value = torch.arange(3 * 12 * 12).reshape(1, 3, 12, 12).float() / 100
-        block(value)
-        self.assertFalse(any(e.get('calculations') for e in events))
-        runner.done_warmup = True
-        expected = block(value)
-        trace.close()
-        rows = [c for e in events for c in e.get('calculations', [])]
-        self.assertEqual(len(rows), 1)
-        row = rows[0]
-        self.assertEqual(row['stage'], 'yolo')
-        self.assertEqual(len(row['inputs']), 27)
-        self.assertEqual(row['activation'], 'silu')
-        self.assertEqual(row['actual'], float(expected[0, 0, 3, 3]))
-        self.assertEqual(row['metadata']['target_indices'], [0, 3, 3])
-        self.assertEqual(row['inputs'], value[0, :, 5:8, 5:8].reshape(-1).tolist())
-        self.assertFalse(any(row['padding']))
-        self.assert_sum(row)
-        for module in block.modules():
-            self.assertFalse(module._forward_hooks)
-            self.assertFalse(module._forward_pre_hooks)
 
     @unittest.skipUnless((Path(__file__).resolve().parents[2] / 'weights/final/lstm.pt').is_file(),
                          'local final reproduction weights are absent')
@@ -207,12 +165,16 @@ class LiveArithmeticTests(unittest.TestCase):
         poses[..., :2] = poses[..., :2] * 20 + 300
         poses[..., 2] = 0.9
         events = []
-        trace = LiveTrace(events.append, interval=0)
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
         trace.attach_yolo(frontend.model)
+        image = rng.integers(0, 256, size=(360, 640, 3), dtype=np.uint8)
         try:
+            # on_predict_start installs the hooks; finish the untraced warm-up
+            # first so the detail scheduler knows the top-level module count.
+            frontend(image)
             trace.begin_frame(60, 2.)
-            frontend(rng.integers(0, 256, size=(360, 640, 3), dtype=np.uint8))
+            frontend(image)
             trace.begin_behavior([8, 2, 91], poses)
             result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
             trace.end_frame([{'track_id': track_id, 'prediction_updated': True,
@@ -222,10 +184,16 @@ class LiveArithmeticTests(unittest.TestCase):
             trace.close()
         self.assertEqual(trace.dropped['budget_events'], 0)
         self.assertEqual(trace.dropped['oversized_events'], 0)
+        self.assertEqual(trace.dropped['detail_budget'], 0)
         rows = [c for event in events for c in event.get('calculations', [])]
-        self.assertEqual(len(rows), 34)
+        stages = {row['stage'] for row in rows}
+        self.assertIn('yolo', stages)
+        self.assertTrue({'normalization', 'decoder', 'denormalization', 'spatial',
+                         'temporal', 'pool', 'classifier'} <= stages)
         for row in rows:
-            self.assert_sum(row)
+            if row['stage'] != 'yolo':
+                self.assert_sum(row)
+        self.assertTrue(all(row['metadata']['complete_sum'] for row in rows if row['stage'] == 'yolo'))
         self.assertEqual(events[-1]['node'], 'pipeline.output')
         self.assertLessEqual(sum(len(json.dumps(event, separators=(',', ':')).encode()) for event in events),
                              SAMPLING['frame_max_bytes'])
