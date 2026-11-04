@@ -12,7 +12,8 @@
 
 - 保持现有生产推理输出、JSONL、标注视频逐值不变；关闭详细采集时不得新增钩子开销。
 - 只为现有前向安装钩子；详细采集不得额外执行一次模型。
-- 层输出 4 fps；详细帧 1 fps；每个详细帧 4 个 YOLO 模块、1 个 ST-GCN 块；YOLO 6 个详细帧覆盖 23 模块，ST-GCN 10 个详细帧覆盖 10 块。
+- 层输出 4 fps；详细帧 1 fps；每个详细帧 4 个 YOLO 模块、1 个 ST-GCN 块；YOLO 6 个详细帧覆盖 24 个顶层模块，ST-GCN 10 个详细帧覆盖 10 块。
+- 发布模型 `yolo26s-pose.pt` 有 24 个顶层模块：索引 0–22 为主干/颈部，索引 23 为 `Pose26` 姿态头；设计文字中的「23 个模块」指主干/颈部，详细轮转与覆盖按 24 个顶层模块计，姿态头单独标注。
 - 代表输出固定：YOLO 通道 0、空间中心；ST-GCN 通道 0、中间时刻、度数最高关节（空间）；时间卷积通道 0、中间时刻。
 - 单代表卷积项数上限 4096（输入通道 × 核高 × 核宽）；超限模块标记为不可用，不截断求和。
 - 单事件上限 128 KiB；普通帧 768 KiB；详细帧总预算 768 KiB，其中详细算式 ≤512 KiB；事件环 1024 事件 / 8 MiB。
@@ -1322,7 +1323,7 @@ In `JobManager`, add:
                 raise JobBusy('视频或网络计算正在运行，请等待完成。')
             if not 0 <= frame < job.state['metadata']['frame_count']:
                 raise ValueError('所选帧超出原始视频范围。')
-            if not 0 <= module_index < 23:
+            if not 0 <= module_index < 24:
                 raise ValueError('模块编号超出范围。')
             if key in self.frontend_cache:
                 self.frontend_cache.move_to_end(key)
@@ -1351,7 +1352,7 @@ In `JobManager`, add:
                 self.network_active = False
 ```
 
-The existing `frontend_cache` is used for `(job_id, frame)` keys; adding three-tuples is okay (mixed keys, LRU). The response limit 2 MiB. The `module_index < 23` hard-code should use the catalog length; use `len(self.frontend_predictor.model.model)` after loading, but the validation before loading can use 23. The plan can use 23 as the known model; better: load the predictor first, then validate. Keep the hard-coded 23 with a note; the model is fixed. Or add `if self.frontend_predictor is not None and module_index >= len(...)`. Fine.
+The existing `frontend_cache` is used for `(job_id, frame)` keys; adding three-tuples is okay (mixed keys, LRU). The response limit 2 MiB. The released model has 24 top-level modules (0–22 backbone/neck, 23 `Pose26` head), so the endpoint accepts `0 <= module_index < 24`; allow the head's representative convolution. If a future model changes the count, replace the bound with `len(self.frontend_predictor.model.model)` after loading.
 
 Add the route in `app.py` after `frontend_network`:
 

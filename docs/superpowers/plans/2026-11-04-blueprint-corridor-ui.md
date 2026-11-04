@@ -17,6 +17,7 @@
 - 保持现有上传、分析、恢复、下载流程；服务仍为本地 `127.0.0.1`。
 - 不新增 UI 框架、图表库或远程字体；中文使用系统无衬线。
 - 自动讲解受真实数据门控：没有该步数据时停在等待状态。
+- 发布模型有 24 个顶层 YOLO 模块：索引 0–22 为主干/颈部，索引 23 为 `Pose26` 姿态头；特征层按 24 个顶层模块绘制，姿态头单独标注。设计文字中的「23 个模块」指主干/颈部。
 - 播放时间是讲解速度，不是推理耗时；界面必须标明。
 - 保持 React 19 / Vite 6 / Three.js 0.186；不修改 `AGENTS.md`。
 - 测试命令：`cd web_demo && npm test && npm run build`；浏览器检查用 Playwright Chromium。
@@ -1417,7 +1418,7 @@ Create `web_demo/src/scene/featureLayer.js`:
 import * as THREE from 'three';
 import { COLORS, lineMaterial, pointMaterial } from './materials';
 
-export function buildFeatureLayer(count = 23) {
+export function buildFeatureLayer(count = 24) {
     const group = new THREE.Group();
     const points = [];
     Array.from({ length: count }, (_, index) => {
@@ -1536,7 +1537,7 @@ import { buildIntentLayer, updateIntentLayer } from './intentLayer.js';
 Add after the bay loop:
 
 ```javascript
-    const feature = buildFeatureLayer(23);
+    const feature = buildFeatureLayer(24);
     feature.group.position.set(...BAYS[1].position).add(V(0, 1.5, 0)); root.add(feature.group);
     const memory = buildMemoryLayer();
     memory.group.position.set(...BAYS[3].position).add(V(0, 1.2, 0)); root.add(memory.group);
