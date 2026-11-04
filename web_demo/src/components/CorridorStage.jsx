@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createCorridorScene } from '../scene/corridorScene';
 import '../styles/corridor.css';
 
-export default function CorridorStage({ step, onPick, onError, children }) {
+export default function CorridorStage({ step, track, onPick, onError, children }) {
     const host = useRef(null);
     const engine = useRef(null);
     const [error, setError] = useState('');
@@ -19,6 +19,7 @@ export default function CorridorStage({ step, onPick, onError, children }) {
         return () => { engine.current?.dispose(); engine.current = null; };
     }, []);
     useEffect(() => { engine.current?.setStep(step); }, [step]);
+    useEffect(() => { engine.current?.setTrack(track); }, [track]);
     if (error) return <div className="corridor-fallback" role="alert">
         <strong>三维画布暂不可用</strong><p>{error}</p>{children}
     </div>;

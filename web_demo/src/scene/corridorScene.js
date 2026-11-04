@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BAYS, cameraForStep } from './layout.js';
 import { COLORS, lineMaterial, glowMaterial } from './materials.js';
+import { buildRibbonGroup } from './idRibbon.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -55,6 +56,21 @@ export function createCorridorScene(host, { onPick, onError } = {}) {
         group.userData.bay = bay; pickables.push(box); return group;
     }
     BAYS.forEach(bay => bays.set(bay.step, bayGroup(bay)));
+
+    const ribbon = new THREE.Group();
+    ribbon.position.set(...BAYS[2].position).add(V(0, 1.2, 0));
+    root.add(ribbon);
+    let trackId = null;
+    function setTrack(track) {
+        if (String(track?.track_id ?? '') === String(trackId ?? '')) return;
+        trackId = track?.track_id ?? null;
+        while (ribbon.children.length) {
+            const child = ribbon.children[ribbon.children.length - 1];
+            ribbon.remove(child);
+            disposeObject(child);
+        }
+        if (track) ribbon.add(buildRibbonGroup(track));
+    }
 
     function frameCamera(animate = true) {
         const pose = cameraForStep(step);
@@ -123,6 +139,7 @@ export function createCorridorScene(host, { onPick, onError } = {}) {
         focus(target) { controls.enabled = true; controls.target.set(...target); camera.position.set(target[0] + 5.5, target[1] + 4.2, target[2] + 12); camera.lookAt(...target); motion = null; },
         reset() { controls.enabled = false; frameCamera(true); },
         append(object) { root.add(object); },
+        setTrack,
         dispose() {
             disposed = true; cancelAnimationFrame(frame); observer.disconnect();
             renderer.domElement.removeEventListener('pointerup', select);

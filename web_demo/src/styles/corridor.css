@@ -6,3 +6,22 @@
 .corridor-stage-wrap { position: relative; min-height: 0; }
 .stage-overlay { position: absolute; inset: 0; pointer-events: none; }
 .stage-overlay > * { pointer-events: auto; }
+.context-rail { border-right: 1px solid var(--line-dim); padding: 14px; display: flex; flex-direction: column; gap: 12px; background: rgba(6,18,37,.6); overflow: auto; }
+.rail-heading span { font: 11px var(--font-mono); color: var(--muted); letter-spacing: .14em; }
+.rail-heading b { display: block; font-size: 16px; }
+.rail-video video { width: 100%; border: 1px solid var(--line-soft); border-radius: 4px; aspect-ratio: 16/9; object-fit: cover; background: #000; }
+.rail-meta { margin-top: 4px; font-size: 11px; color: var(--text-2); }
+.rail-person { display: flex; gap: 10px; align-items: center; }
+.rail-skeleton { width: 78px; height: 94px; color: var(--focus); }
+.rail-skeleton.empty { display: grid; place-items: center; font-size: 10px; color: var(--muted); }
+.rail-id { display: block; color: var(--current); font-size: 12px; }
+.rail-person strong { display: block; font-size: 18px; font-weight: 500; }
+.rail-person small { color: var(--text-2); font-size: 11px; }
+.rail-scores { display: grid; gap: 6px; }
+.rail-scores > div { display: grid; grid-template-columns: 48px 1fr 46px; gap: 6px; align-items: center; font-size: 12px; }
+.rail-scores i { height: 4px; background: var(--line-dim); border-radius: 2px; overflow: hidden; }
+.rail-scores em { display: block; height: 100%; background: var(--focus); }
+.rail-people { display: flex; gap: 6px; flex-wrap: wrap; }
+.rail-people button { border: 1px solid var(--line-soft); background: none; color: var(--text-2); padding: 4px 8px; border-radius: 3px; font: 12px var(--font-mono); }
+.rail-people button[aria-pressed="true"] { color: var(--current); border-color: var(--current); }
+.rail-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
