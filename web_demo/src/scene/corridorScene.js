@@ -1,0 +1,134 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { BAYS, cameraForStep } from './layout.js';
+import { COLORS, lineMaterial, glowMaterial } from './materials.js';
+
+const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+
+export function createCorridorScene(host, { onPick, onError } = {}) {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(COLORS.background);
+    scene.fog = new THREE.Fog(COLORS.background, 60, 150);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.className = 'corridor-canvas';
+    renderer.domElement.setAttribute('aria-label', '六步神经网络长廊。拖动旋转，滚轮缩放，点击对象检查计算。');
+    renderer.domElement.setAttribute('role', 'img');
+    host.appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 300);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.08;
+    controls.minDistance = 4; controls.maxDistance = 80; controls.maxPolarAngle = Math.PI * 0.86;
+    controls.enabled = false;
+    scene.add(new THREE.HemisphereLight(0xcdeaff, 0x061225, 1.6));
+    const sun = new THREE.DirectionalLight(0x9fe8ff, 1.4); sun.position.set(-8, 16, 12); scene.add(sun);
+    const floor = new THREE.GridHelper(140, 70, 0x17456b, 0x0c2b47);
+    floor.position.y = -3.2; floor.material.transparent = true; floor.material.opacity = 0.4; scene.add(floor);
+    const root = new THREE.Group(); scene.add(root);
+    const bays = new Map();
+    const pickables = [];
+    let step = 1, motion = null, disposed = false, frame = 0, lastTime = performance.now();
+
+    function makeLabel(text, position, size = 0.32, color = COLORS.line) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 512; canvas.height = 64;
+        context.font = '500 32px "SFMono-Regular", Menlo, monospace';
+        context.textAlign = 'center'; context.textBaseline = 'middle';
+        context.fillStyle = '#' + new THREE.Color(color).getHexString();
+        context.fillText(text, 256, 32);
+        const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+        sprite.position.set(...position); sprite.scale.set(5 * size * 2, 0.62 * size * 2, 1);
+        sprite.renderOrder = 4; root.add(sprite); return sprite;
+    }
+
+    function bayGroup(bay) {
+        const group = new THREE.Group(); group.position.set(...bay.position); root.add(group);
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 3.4), glowMaterial(COLORS.focus, 0.035));
+        plate.position.set(0, 1.9, 0); plate.rotation.x = -Math.PI / 2; group.add(plate);
+        const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(5.8, 4.2, 3.2)), lineMaterial(COLORS.line, 0.28));
+        box.position.set(0, 1.4, 0); group.add(box);
+        makeLabel('0' + bay.step + ' / ' + bay.label, [0, 4.3, 0], 0.3);
+        group.userData.bay = bay; pickables.push(box); return group;
+    }
+    BAYS.forEach(bay => bays.set(bay.step, bayGroup(bay)));
+
+    function frameCamera(animate = true) {
+        const pose = cameraForStep(step);
+        controls.target.set(...pose.target);
+        if (!animate || prefersReducedMotion()) {
+            camera.position.set(...pose.position); camera.lookAt(...pose.target); motion = null; return;
+        }
+        motion = { target: V(...pose.target), position: V(...pose.position) };
+    }
+    function updateCamera(now = performance.now()) {
+        const delta = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        if (!motion) return;
+        camera.position.lerp(motion.position, 1 - Math.pow(1 - 0.08, delta * 60));
+        const look = camera.position.clone().add(motion.target.clone().sub(camera.position).normalize().multiplyScalar(10));
+        camera.lookAt(look);
+        if (camera.position.distanceTo(motion.position) < 0.03) {
+            camera.position.copy(motion.position); camera.lookAt(motion.target); motion = null;
+        }
+    }
+    function resize() {
+        const width = Math.max(1, host.clientWidth), height = Math.max(1, host.clientHeight);
+        renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix();
+    }
+    const observer = new ResizeObserver(resize); observer.observe(host); resize();
+
+    function select(event) {
+        if (motion) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
+            -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
+        const hit = raycaster.intersectObjects(pickables, false)[0];
+        if (!hit) return;
+        const bay = hit.object.parent?.userData?.bay;
+        if (bay) onPick?.({ kind: 'bay', step: bay.step });
+    }
+    function contextLost(event) {
+        event.preventDefault(); onError?.('三维渲染上下文已中断，数值台仍可使用。');
+    }
+    renderer.domElement.addEventListener('pointerup', select);
+    renderer.domElement.addEventListener('webglcontextlost', contextLost);
+
+    function animate(now) {
+        if (disposed) return;
+        frame = requestAnimationFrame(animate);
+        updateCamera(now);
+        if (controls.enabled) controls.update();
+        renderer.render(scene, camera);
+    }
+    frameCamera(false); frame = requestAnimationFrame(animate);
+
+    function disposeObject(object) {
+        object.traverse(child => {
+            child.geometry?.dispose?.();
+            const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+            materials.forEach(material => {
+                Object.values(material).forEach(value => { if (value?.isTexture) value.dispose(); });
+                material.dispose?.();
+            });
+        });
+    }
+
+    return {
+        setStep(next) { step = next; controls.enabled = false; frameCamera(true); },
+        focus(target) { controls.enabled = true; controls.target.set(...target); camera.position.set(target[0] + 5.5, target[1] + 4.2, target[2] + 12); camera.lookAt(...target); motion = null; },
+        reset() { controls.enabled = false; frameCamera(true); },
+        append(object) { root.add(object); },
+        dispose() {
+            disposed = true; cancelAnimationFrame(frame); observer.disconnect();
+            renderer.domElement.removeEventListener('pointerup', select);
+            renderer.domElement.removeEventListener('webglcontextlost', contextLost);
+            controls.dispose(); disposeObject(scene);
+            renderer.dispose(); renderer.domElement.remove();
+        },
+    };
+}
