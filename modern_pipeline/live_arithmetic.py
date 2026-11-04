@@ -2,9 +2,10 @@
 
 The spatial/temporal indexing follows web/network.py's inspected sums, but this
 module has no web dependency and never calls a network. Only representative
-operands are copied. Every live operand, scalar bias, and actual value is rounded
-to five decimals; non-finite values become null. Probability provenance is kept
-at full precision.
+operands are copied. Calculation inputs, weights, scalar bias/actual, and graph
+edges are serialized to five decimals with non-finite values as null; pool
+contributions are scaled operands. Probability provenance and normalization
+statistics retain their observed precision.
 """
 import math
 
@@ -17,11 +18,14 @@ from modern_pipeline.model_catalog import select_representative_conv
 # 244 KiB of the 512 KiB detail budget. Capping boundary operands per selected
 # block at 4608 terms keeps a behavior-only detail frame under both limits with
 # three tracks; 2304-term blocks receive boundary rows for two rotating tracks.
-# Frames that also carry YOLO detail rows omit boundary rows above 576 terms
-# (measured: 1152 terms plus four YOLO rows exceeds the 768 KiB frame). The
-# Task 7 benchmark remains the production measurement for the combined frame.
+# Odd detail frames carry YOLO rows, so blocks above 576 temporal terms defer
+# their boundary rows to the next (even) detail frame, which has no YOLO rows.
+# Even frames that still run YOLO inference keep one rotating boundary track for
+# 2304-term blocks so the frame stays inside 768 KiB. The Task 7 benchmark
+# remains the production measurement for combined frames.
 DETAIL_BOUNDARY_TERM_LIMIT = 4608
 DETAIL_YOLO_BOUNDARY_MAX_TERMS = 576
+DETAIL_YOLO_RAN_BOUNDARY_TRACKS = 1
 
 
 def _rounded(tensor):
@@ -134,6 +138,8 @@ class LiveArithmetic:
         self.yolo_conv_state = {}
 
     def publish(self, row, model, stage):
+        if not self.trace.detail_frame:
+            return
         metadata = row['metadata']
         detail = {}
         if metadata.get('detail'):
@@ -145,7 +151,8 @@ class LiveArithmetic:
 
     def begin_behavior(self, histories):
         self.statistics = []
-        if not self.trace.active or histories is None or self.predictor is None or self.predictor.lstm is None:
+        if (not self.trace.active or not self.trace.detail_frame or histories is None
+                or self.predictor is None or self.predictor.lstm is None):
             return
         predictor = self.predictor
         poses = torch.as_tensor(histories[:len(self.trace.track_ids)], dtype=torch.float32,
@@ -282,10 +289,16 @@ class LiveArithmetic:
                 terms = value.shape[1] * kernel
                 boundary_tracks = min(len(trace.track_ids),
                                       DETAIL_BOUNDARY_TERM_LIMIT // terms)
-                if self.trace.detail_modules and terms > DETAIL_YOLO_BOUNDARY_MAX_TERMS:
-                    # A frame that already carries YOLO rows cannot also fit a
-                    # deep-block boundary example; keep every middle row instead.
+                if terms > DETAIL_YOLO_BOUNDARY_MAX_TERMS and self.trace.detail_index % 2:
+                    # Odd detail frames carry YOLO rows; defer deep boundary
+                    # examples to the next even detail frame, keeping every
+                    # middle row here.
                     boundary_tracks = 0
+                elif self.trace.yolo_ran and terms > 1152:
+                    # YOLO inference events still consume the frame budget on
+                    # even subframes; keep one rotating boundary track for the
+                    # deepest blocks rather than dropping later events.
+                    boundary_tracks = min(boundary_tracks, DETAIL_YOLO_RAN_BOUNDARY_TRACKS)
                 tracks = list(enumerate(trace.track_ids))
                 for boundary, timestep in ((False, middle), (True, 0)):
                     if boundary and timestep == middle:
@@ -343,7 +356,8 @@ class LiveArithmetic:
         for batch, track_id in enumerate(self.trace.track_ids):
             row = calculation('stgcn.pool.track%d' % track_id, 'pool', '全局平均池化', track_id,
                               '第 10 块输出 · 通道 0 的平均值',
-                              [value / count for value in values(self.pool_values[batch])],
+                              [None if value is None else value / count
+                               for value in values(self.pool_values[batch])],
                               weights, tensor[batch, 0, 0, 0],
                               [[0, time, joint] for time in range(times) for joint in range(joints)],
                               ['channel', 'time', 'joint'], target_indices=[0],

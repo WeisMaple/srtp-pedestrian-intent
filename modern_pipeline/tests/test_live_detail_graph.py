@@ -3,6 +3,7 @@ from collections import defaultdict
 import json
 import math
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 
 import numpy as np
@@ -45,7 +46,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         self.assertAlmostEqual(total, calculation['actual'],
                                delta=1e-4 * max(1., abs(total)), msg=calculation['id'])
 
-    def test_two_detail_cycles_cover_all_blocks_with_complete_sums_and_rotating_boundaries(self):
+    def test_two_detail_cycles_cover_yolo_modules_blocks_and_rotating_boundaries(self):
         predictor = self.predictor()
         rng = np.random.default_rng(23)
         poses = rng.normal(size=(3, 50, 17, 3)).astype(np.float32)
@@ -54,9 +55,23 @@ class LiveDetailGraphTests(unittest.TestCase):
         events = []
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
+        callbacks = {'on_predict_start': []}
+        yolo = SimpleNamespace(callbacks=callbacks,
+                               add_callback=lambda name, callback: callbacks[name].append(callback))
+        network = torch.nn.Sequential(*[torch.nn.Identity() for _ in range(24)])
+        backend = SimpleNamespace(model=network, is_fused=lambda: True)
+        runner = SimpleNamespace(model=SimpleNamespace(model=backend), done_warmup=False)
+        trace.attach_yolo(yolo)
+        callbacks['on_predict_start'][0](runner)
+        seen_yolo = set()
         try:
             for step in range(20):
                 trace.begin_frame(100 + step, step)
+                if trace.detail_index % 2:
+                    self.assertEqual(len(trace.detail_modules), 4)
+                else:
+                    self.assertEqual(trace.detail_modules, set())
+                seen_yolo.update(trace.detail_modules)
                 trace.begin_behavior([8, 2, 91], poses)
                 result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
                 trace.end_frame([{'track_id': track, 'prediction_updated': True,
@@ -64,6 +79,8 @@ class LiveDetailGraphTests(unittest.TestCase):
                                  for track, probability in zip([8, 2, 91], result['probabilities'])])
         finally:
             trace.close()
+        # Six odd detail frames cover the 24 scheduled modules.
+        self.assertEqual(seen_yolo, set(range(24)))
         detail_events = [event for event in events
                          if event.get('detail') and 'detail_block' in event]
         self.assertEqual({event['frame'] for event in detail_events}, set(range(100, 120)))
@@ -78,6 +95,14 @@ class LiveDetailGraphTests(unittest.TestCase):
         for frame, row in detail_rows:
             by_frame[frame].append(row)
         tracks = {8, 2, 91}
+        expected_boundary = {
+            100: tracks, 101: tracks, 102: tracks, 103: tracks,
+            104: set(), 105: tracks, 106: set(), 107: {8, 2},
+            108: set(), 109: {2, 91},
+            110: tracks, 111: tracks, 112: tracks, 113: tracks,
+            114: set(), 115: tracks, 116: set(), 117: {2, 91},
+            118: set(), 119: {91, 8},
+        }
         boundary_by_frame = {}
         for frame in range(100, 120):
             frame_rows = by_frame[frame]
@@ -88,22 +113,20 @@ class LiveDetailGraphTests(unittest.TestCase):
                               if c['stage'] == 'temporal' and not c['metadata']['boundary']}, tracks)
             boundary_by_frame[frame] = {c['track_id'] for c in frame_rows
                                         if c['stage'] == 'temporal' and c['metadata']['boundary']}
+            self.assertEqual(boundary_by_frame[frame], expected_boundary[frame])
             block = frame_rows[0]['metadata']['detail_block']
-            if block < 7:
-                self.assertEqual(boundary_by_frame[frame], tracks)
-            else:
+            if block in (4, 6, 8):
+                self.assertEqual(boundary_by_frame[frame], set())
+            elif block >= 7:
                 self.assertEqual(len(boundary_by_frame[frame]), 2)
-        # Deep-block boundary subsets rotate with the detail cycle.
+            else:
+                self.assertEqual(boundary_by_frame[frame], tracks)
+        # Deep boundary subsets rotate on the even detail frames.
         self.assertEqual(boundary_by_frame[107], {8, 2})
         self.assertEqual(boundary_by_frame[117], {2, 91})
-        self.assertEqual(boundary_by_frame[108], {8, 2})
-        self.assertEqual(boundary_by_frame[118], {2, 91})
         self.assertEqual(boundary_by_frame[109], {2, 91})
         self.assertEqual(boundary_by_frame[119], {91, 8})
-        for block in range(7, 10):
-            seen = set().union(*(boundary_by_frame[frame] for frame in range(100, 120)
-                                 if by_frame[frame][0]['metadata']['detail_block'] == block))
-            self.assertEqual(seen, tracks)
+        self.assertEqual(set().union(*boundary_by_frame.values()), tracks)
         self.assertEqual(trace.dropped['detail_budget'], 0)
         self.assertEqual(trace.dropped['budget_events'], 0)
         self.assertEqual(trace.dropped['oversized_events'], 0)
@@ -158,7 +181,7 @@ class LiveDetailGraphTests(unittest.TestCase):
         and (Path(__file__).resolve().parents[2] / 'weights/final/lstm.pt').is_file()
         and (Path(__file__).resolve().parents[2] / 'weights/final/yolo26s-pose.pt').is_file(),
         'local final reproduction weights are absent')
-    def test_deep_blocks_with_production_yolo_detail_fit_budgets(self):
+    def test_odd_yolo_and_even_boundary_subframes_fit_budgets(self):
         from modern_pipeline.frontend import YOLOPoseTracker
         directory = Path(__file__).resolve().parents[2] / 'weights/final'
         torch.set_num_threads(2)
@@ -173,17 +196,20 @@ class LiveDetailGraphTests(unittest.TestCase):
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
         trace.attach_behavior(predictor)
         trace.attach_yolo(frontend.model)
-        frames = ((24, 4, {4, 5, 6, 7}), (29, 9, {0, 1, 2, 3}))
+        # Odd detail frame: block 4 with four scheduled YOLO modules and no
+        # boundary rows. Even detail frame: block 9 with YOLO inference still
+        # running, so one rotating boundary track and no YOLO details.
+        frames = ((4, 4, {12, 13, 14, 15}), (9, 9, set()))
         try:
-            # Warm-up installs the YOLO hooks; each next detail frame then
-            # selects a deep block together with four representative modules.
             frontend(image)
+            trace.yolo_detail_index = 2  # mid-stream YOLO schedule for block 4
             for step, (preset, block, modules) in enumerate(frames):
                 trace.detail_index = preset
                 trace.begin_frame(60 + step, 2. + step)
                 self.assertEqual(trace.detail_block, block)
                 self.assertEqual(trace.detail_modules, modules)
                 frontend(image)
+                self.assertTrue(trace.yolo_ran)
                 trace.begin_behavior([8, 2, 91], poses)
                 result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
                 trace.end_frame([{'track_id': track, 'prediction_updated': True,
@@ -194,19 +220,22 @@ class LiveDetailGraphTests(unittest.TestCase):
         self.assertEqual(trace.dropped['detail_budget'], 0)
         self.assertEqual(trace.dropped['budget_events'], 0)
         self.assertEqual(trace.dropped['oversized_events'], 0)
+        expected = {0: {'yolo_min': 1, 'boundary': set()},
+                    1: {'yolo_min': 0, 'boundary': {2}}}
         for step, (_, block, _) in enumerate(frames):
             frame_events = [event for event in events if event['frame'] == 60 + step]
             rows = [c for event in frame_events for c in event.get('calculations', [])]
-            self.assertEqual(len([c for c in rows if c['stage'] == 'yolo']), 4)
+            yolo_rows = [c for c in rows if c['stage'] == 'yolo']
+            self.assertGreaterEqual(len(yolo_rows), expected[step]['yolo_min'])
+            self.assertTrue(all(row['metadata']['complete_sum'] for row in yolo_rows))
             self.assertEqual({c['track_id'] for c in rows if c['stage'] == 'spatial'},
                              {8, 2, 91})
             self.assertEqual({c['track_id'] for c in rows
                               if c['stage'] == 'temporal' and not c['metadata']['boundary']},
                              {8, 2, 91})
-            # A YOLO detail frame keeps every middle row but omits boundary
-            # rows above 576 terms, which cannot fit with four YOLO rows.
-            self.assertEqual([c for c in rows
-                              if c['stage'] == 'temporal' and c['metadata']['boundary']], [])
+            boundary = {c['track_id'] for c in rows
+                        if c['stage'] == 'temporal' and c['metadata']['boundary']}
+            self.assertEqual(boundary, expected[step]['boundary'])
             for row in rows:
                 if row['stage'] in ('spatial', 'temporal'):
                     self.assert_row(row)
@@ -219,6 +248,49 @@ class LiveDetailGraphTests(unittest.TestCase):
             self.assertEqual(frame_events[-1]['node'], 'pipeline.output')
             self.assertEqual({row['metadata']['detail_block'] for row in rows
                               if row['stage'] in ('spatial', 'temporal')}, {block})
+        # The even frame supplies the boundary example deferred by the odd frame.
+        self.assertEqual(expected[0]['boundary'] | expected[1]['boundary'], {2})
+        self.assertTrue(expected[1]['boundary'])
+
+    def test_pool_serializes_nonfinite_contributions_as_null(self):
+        predictor = self.predictor()
+        events = []
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
+        try:
+            trace.begin_frame(1, 0)
+            trace.begin_behavior([5])
+            arithmetic = trace.arithmetic
+            arithmetic.pool_values = torch.tensor([[[1.0, float('nan'), float('inf')]]])
+            arithmetic.pool(torch.zeros(1, 3, 1, 1))
+        finally:
+            trace.close()
+        row = next(c for event in events for c in event.get('calculations', [])
+                   if c['stage'] == 'pool')
+        self.assertEqual(row['inputs'], [0.33333, None, None])
+        self.assertEqual(row['weights'], [1.0, 1.0, 1.0])
+        self.assertEqual(row['actual'], 0.0)
+        self.assertEqual(row['metadata']['weight_rounding'], 'operands_scaled_by_divisor')
+
+    def test_non_detail_frame_emits_no_arithmetic_rows(self):
+        predictor = self.predictor()
+        poses = np.full((1, 50, 17, 3), 1., dtype=np.float32)
+        events = []
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=999)
+        trace.attach_behavior(predictor)
+        try:
+            self.assertTrue(trace.begin_frame(1, 0.0))
+            self.assertTrue(trace.detail_frame)
+            self.assertTrue(trace.begin_frame(2, 0.1))
+            self.assertFalse(trace.detail_frame)
+            trace.begin_behavior([7], poses)
+            result = predictor.predict(poses, poses[0], on_event=trace.forecast_step)
+            trace.end_frame([{'track_id': 7, 'prediction_updated': True,
+                              'probabilities': result['probabilities'][0].tolist()}])
+        finally:
+            trace.close()
+        self.assertTrue(any(event['frame'] == 2 and event['model'] == 'stgcn'
+                            for event in events))
+        self.assertFalse(any(event.get('calculations') for event in events))
 
     def test_classifier_handles_nonfinite_logits(self):
         predictor = self.predictor()

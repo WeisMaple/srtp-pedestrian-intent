@@ -86,11 +86,13 @@ class LiveTrace:
         self.detail_interval = max(0.0, float(detail_interval))
         self.detail_last = float('-inf')
         self.detail_index = 0
+        self.yolo_detail_index = 0
         self.detail_frame = False
         self.detail_modules = set()
         self.detail_block = 0
         self.detail_bytes = 0
         self.yolo_module_count = 0
+        self.yolo_ran = False
         self.last_capture = float('-inf')
         self.active = False
         self.frame = -1
@@ -113,6 +115,7 @@ class LiveTrace:
         now = time.perf_counter()
         self.frame, self.time_seconds = int(frame), float(time_seconds)
         self.track_ids, self.batch_size, self.round = [], 0, 0
+        self.yolo_ran = False
         self.arithmetic.reset()
         self.active = now - self.last_capture >= self.interval
         if not self.active:
@@ -126,9 +129,14 @@ class LiveTrace:
         if self.detail_frame:
             self.detail_last = now
             self.detail_index += 1
-            count = self.yolo_module_count
-            if count:
-                self.detail_modules = {(self.detail_index * 4 + i) % count for i in range(4)}
+            # Detail subframes alternate: odd detail frames carry four YOLO
+            # module rows plus ST-GCN middle rows; even frames carry ST-GCN
+            # spatial/middle/boundary rows without YOLO. YOLO coverage advances
+            # only on odd frames, so 24 modules take six odd frames (about 12 s
+            # at a 1 fps detail interval) and no frame exceeds its budget.
+            if self.detail_index % 2:
+                self.yolo_detail_index += 1
+                self.detail_modules = self._scheduled_yolo_modules()
             else:
                 self.detail_modules = set()
             self.detail_block = (self.detail_index - 1) % 10
@@ -138,6 +146,13 @@ class LiveTrace:
         self._publish('pipeline', 'pipeline.frame', 1, {}, None, phase='start',
                       dropped=dict(self.dropped), sampling=SAMPLING)
         return True
+
+    def _scheduled_yolo_modules(self):
+        count = self.yolo_module_count
+        if not count:
+            return set()
+        start = self.yolo_detail_index * 4
+        return {(start + offset) % count for offset in range(4)}
 
     def begin_behavior(self, track_ids, histories=None):
         self.track_ids = [int(x) for x in track_ids[:3]]
@@ -233,13 +248,14 @@ class LiveTrace:
             self.yolo_module = network
             self.yolo_module_count = len(network.model)
             if self.detail_frame and not previous_count and self.yolo_module_count:
-                self.detail_modules = {(self.detail_index * 4 + i) % self.yolo_module_count
-                                       for i in range(4)}
+                self.detail_modules = (self._scheduled_yolo_modules()
+                                       if self.detail_index % 2 else set())
             fused = bool(getattr(network, 'is_fused', lambda: False)())
             if self.detail:
                 self.arithmetic.attach_yolo(network, fused, guard=lambda: bool(self.predictor.done_warmup))
             for index, module in enumerate(network.model):
                 def capture(inputs, output, duration, index=index, module=module):
+                    self.yolo_ran = True
                     tensor = first_tensor(output)
                     if tensor is None:
                         return
@@ -287,7 +303,7 @@ class LiveTrace:
 
         def pool(_module, inputs):
             if self.active:
-                if self.detail:
+                if self.detail and self.detail_frame:
                     self.arithmetic.pool(inputs[0])
                 self._publish('stgcn', 'stgcn.pool', 5, {
                     'output': sample_tensor(inputs[0], ['track', 'channel', 'y', 'x'], [3, 16, 1, 1], (0, 1))},
@@ -295,7 +311,7 @@ class LiveTrace:
         self.handles.append(predictor.stgcn.fcn.register_forward_pre_hook(pool))
 
         def logits(inputs, output, duration):
-            if self.detail:
+            if self.detail and self.detail_frame:
                 self.arithmetic.classifier(predictor.stgcn.fcn, inputs, output)
             self._publish('stgcn', 'stgcn.logits', 5, {
                 'output': sample_tensor(output.reshape(output.shape[0], -1), ['track', 'class'], [3, 3], (0, 1))}, duration,

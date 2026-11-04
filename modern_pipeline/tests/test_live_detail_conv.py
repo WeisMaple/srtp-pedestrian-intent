@@ -112,7 +112,7 @@ class LiveDetailConvTests(unittest.TestCase):
         self.assertFalse(block._forward_hooks)
         self.assertFalse(block._forward_pre_hooks)
 
-    def test_six_detail_frames_cover_all_twenty_four_modules(self):
+    def test_twelve_detail_frames_cover_all_twenty_four_modules_on_odd_frames(self):
         yolo, runner, callbacks = runner_for([torch.nn.Identity() for _ in range(24)])
         events = []
         trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
@@ -122,9 +122,13 @@ class LiveDetailConvTests(unittest.TestCase):
         attach(trace, yolo, runner, callbacks)
         self.assertEqual(trace.detail_modules, {4, 5, 6, 7})
         seen = set(trace.detail_modules)
-        for step in range(1, 6):
+        for step in range(1, 12):
             self.assertTrue(trace.begin_frame(step, float(step)))
             self.assertTrue(trace.detail_frame)
+            if trace.detail_index % 2:
+                self.assertEqual(len(trace.detail_modules), 4)
+            else:
+                self.assertEqual(trace.detail_modules, set())
             seen.update(trace.detail_modules)
         trace.close()
         self.assertEqual(seen, set(range(24)))
