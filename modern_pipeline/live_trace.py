@@ -14,14 +14,15 @@ import time
 TERMINAL = {'completed', 'failed', 'cancelled'}
 # Actual YOLO detail plus three people's complete representative sums exceed
 # 512 KiB (frame-60 audit dropped two classifier records). Keep each event at
-# 128 KiB, cap detail rows at 512 KiB per frame, and keep the ring at 4 MiB;
+# 128 KiB, cap detail rows at 512 KiB per frame, and keep the ring at 8 MiB;
 # 768 KiB admits the measured behavior frame plus its detail rows.
 SAMPLING = {'max_frames_per_second': 4, 'max_tracks': 3,
             'yolo_channels': 4, 'yolo_grid': [8, 8],
             'lstm_hidden_units': 16, 'lstm_layers': 10,
             'stgcn_channels': 4, 'stgcn_times': 1, 'stgcn_joints': 17,
-            'ring_max_events': 512, 'ring_max_bytes': 4 * 1024 * 1024,
-            'frame_max_events': 128, 'frame_max_bytes': 768 * 1024,
+            'ring_max_events': 1024, 'ring_max_bytes': 8 * 1024 * 1024,
+            'event_max_bytes': 128 * 1024,
+            'frame_max_events': 192, 'frame_max_bytes': 768 * 1024,
             'detail_interval_seconds': 1.0, 'detail_yolo_modules': 4, 'detail_stgcn_blocks': 1,
             'detail_frame_max_bytes': 768 * 1024, 'detail_calculation_max_bytes': 512 * 1024,
             'detail_max_terms': 4096,
@@ -181,6 +182,14 @@ class LiveTrace:
     def end_frame(self, tracks):
         if self.active:
             self.arithmetic.finish(tracks)
+            if self.detail_frame:
+                # Coverage advertises this frame's scheduled detail; cumulative
+                # progress is available from the buffer snapshot's details.
+                self._publish('pipeline', 'detail.coverage', 1, {}, None,
+                              yolo_modules=sorted(self.detail_modules),
+                              stgcn_block=self.detail_block,
+                              detail_frame=self.detail_index,
+                              detail_boundary=self.detail_boundary)
             self._publish('pipeline', 'pipeline.output', 7, {},
                           (time.perf_counter() - self.frame_started) * 1000,
                           tracks=tracks[:3], phase='complete', dropped=dict(self.dropped))
@@ -203,7 +212,7 @@ class LiveTrace:
             return
         if event.get('detail'):
             self.detail_bytes += size
-        if size > 128 * 1024:
+        if size > SAMPLING['event_max_bytes']:
             self.dropped['oversized_events'] += 1
             return
         if self.frame_events >= SAMPLING['frame_max_events'] or self.frame_bytes + size > SAMPLING['frame_max_bytes']:
@@ -335,19 +344,27 @@ class LiveTrace:
 
 class LiveBuffer:
     """Access under the JobManager lock. No client owns inference resources."""
-    def __init__(self, job_id, max_events=512, max_bytes=4 * 1024 * 1024):
+    def __init__(self, job_id, max_events=SAMPLING['ring_max_events'],
+                 max_bytes=SAMPLING['ring_max_bytes']):
         self.job_id = job_id
         self.max_events, self.max_bytes = max_events, max_bytes
         self.events = deque()
         self.bytes = 0
         self.seq = 0
         self.nodes = {}
+        self.details = {'yolo': {}, 'stgcn': {}}
         self.frame = -1
         self.time_seconds = 0
         self.tracks = []
         self.dropped = {'capture_frames': 0, 'ring_events': 0, 'oversized_events': 0, 'budget_events': 0}
         self.terminal = None
         self.captured_at_ms = None
+
+    def _bound_details(self):
+        if len(self.details['yolo']) > 24:
+            self.details['yolo'] = dict(list(self.details['yolo'].items())[-24:])
+        if len(self.details['stgcn']) > 10:
+            self.details['stgcn'] = dict(list(self.details['stgcn'].items())[-10:])
 
     def _store(self, name, data):
         self.seq += 1
@@ -371,6 +388,21 @@ class LiveBuffer:
         self.dropped.update(event.get('dropped', {}))
         data = self._store('computation', event)
         self.nodes[event['node']] = data
+        for row in event.get('calculations', []) or []:
+            metadata = row.get('metadata', {}) or {}
+            if not metadata.get('detail'):
+                continue
+            if row.get('stage') == 'yolo':
+                module = row.get('module')
+                if module is not None:
+                    self.details['yolo'][module] = row
+            else:
+                block = metadata.get('detail_block')
+                if block is not None:
+                    self.details['stgcn'].setdefault(block, [])
+                    self.details['stgcn'][block].append(row)
+                    self.details['stgcn'][block] = self.details['stgcn'][block][-12:]
+        self._bound_details()
         if 'tracks' in event:
             self.tracks = event['tracks']
         self.captured_at_ms = event.get('captured_at_ms')
@@ -380,7 +412,8 @@ class LiveBuffer:
         return deepcopy({'seq': self.seq, 'job_id': self.job_id, 'status': status,
                          'frame': self.frame, 'time_seconds': self.time_seconds,
                          'captured_at_ms': self.captured_at_ms, 'nodes': self.nodes,
-                         'tracks': self.tracks, 'dropped': self.dropped, 'sampling': SAMPLING})
+                         'tracks': self.tracks, 'details': self.details,
+                         'dropped': self.dropped, 'sampling': SAMPLING})
 
     def finish(self, status):
         if self.terminal is None:
@@ -417,6 +450,23 @@ class LiveBuffer:
             raise ValueError('Live snapshot belongs to another job')
         self.seq = int(saved['seq'])
         self.nodes = saved.get('nodes', {})
+        # JSON turns detail keys into strings; restore the integer module and
+        # block keys so later appends and sorted coverage stay consistent.
+        self.details = {'yolo': {}, 'stgcn': {}}
+        saved_details = saved.get('details') or {}
+        for module, row in (saved_details.get('yolo') or {}).items():
+            try:
+                module = int(module)
+            except (TypeError, ValueError):
+                continue
+            self.details['yolo'][module] = row
+        for block, rows in (saved_details.get('stgcn') or {}).items():
+            try:
+                block = int(block)
+            except (TypeError, ValueError):
+                continue
+            self.details['stgcn'][block] = list(rows or [])[-12:]
+        self._bound_details()
         self.frame = saved.get('frame', -1)
         self.time_seconds = saved.get('time_seconds', 0)
         self.tracks = saved.get('tracks', [])

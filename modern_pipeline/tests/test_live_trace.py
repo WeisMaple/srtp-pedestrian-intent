@@ -103,8 +103,11 @@ class LiveTraceTests(unittest.TestCase):
         trace.begin_frame(1, 0.1)
         for number in range(200):
             trace._publish('pipeline', 'test.%d' % number, 1, {}, None)
-        self.assertEqual(len(events), 128)
-        self.assertEqual(trace.dropped['budget_events'], 73)
+        # begin_frame's pipeline.frame event shares the per-frame budget with
+        # the 200 test events.
+        self.assertEqual(len(events), SAMPLING['frame_max_events'])
+        self.assertEqual(trace.dropped['budget_events'],
+                         201 - SAMPLING['frame_max_events'])
         trace.close()
 
     def test_short_history_and_skipped_frames_never_emit_fake_behavior(self):
