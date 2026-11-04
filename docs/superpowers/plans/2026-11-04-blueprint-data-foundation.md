@@ -850,7 +850,7 @@ In `LiveArithmetic.attach_behavior`, replace the block-0-only hooks with a loop 
                     row['metadata']['detail_block'] = index
                     self.publish(row, 'stgcn', 5)
 
-            def temporal(inputs, output, index=index):
+            def temporal(inputs, output, index=index, block=block):
                 if not selected(index):
                     return
                 value = inputs[0]
