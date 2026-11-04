@@ -174,6 +174,32 @@ class LiveDetailCoverageTests(unittest.TestCase):
             trace.close()
         self.assertEqual(self.coverage(events), [])
 
+    def test_heavy_block_and_dense_yolo_pairing_schedules_two_modules(self):
+        events = []
+        trace = LiveTrace(events.append, interval=0, detail=True, detail_interval=0)
+        trace.yolo_module_count = 24
+        trace.stgcn_terms = [64 * 9] * 7 + [256 * 9] * 3
+        trace.yolo_module_terms = {4: 576, 5: 2304, 6: 576, 7: 2304,
+                                   12: 0, 13: 576, 14: 0, 15: 0}
+        expected = ((14, 15, 7, {4, 5}),
+                    (2, 3, 1, {4, 5, 6, 7}),
+                    (18, 19, 9, {12, 13, 14, 15}))
+        try:
+            for preset, index, block, modules in expected:
+                trace.detail_index = preset
+                trace.begin_frame(index, index / 30.)
+                self.assertEqual(trace.detail_index, index)
+                self.assertEqual(trace.detail_block, block)
+                self.assertEqual(trace.detail_modules, modules)
+                trace.end_frame([])
+        finally:
+            trace.close()
+        rows = self.coverage(events)
+        self.assertEqual([set(row['yolo_modules']) for row in rows],
+                         [modules for _, _, _, modules in expected])
+        self.assertEqual([row['stgcn_block'] for row in rows],
+                         [block for _, _, block, _ in expected])
+
 
 if __name__ == '__main__':
     unittest.main()

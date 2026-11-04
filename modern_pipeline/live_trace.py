@@ -23,12 +23,25 @@ SAMPLING = {'max_frames_per_second': 4, 'max_tracks': 3,
             'ring_max_events': 1024, 'ring_max_bytes': 8 * 1024 * 1024,
             'event_max_bytes': 128 * 1024,
             'frame_max_events': 192, 'frame_max_bytes': 768 * 1024,
-            'detail_interval_seconds': 1.0, 'detail_yolo_modules': 4, 'detail_stgcn_blocks': 1,
+            'detail_interval_seconds': 1.0, 'detail_yolo_modules': 4,
+            'detail_yolo_modules_heavy': 2, 'detail_stgcn_blocks': 1,
             'detail_frame_max_bytes': 768 * 1024, 'detail_calculation_max_bytes': 512 * 1024,
             'detail_max_terms': 4096,
             'arithmetic': 'complete representative outputs; representative YOLO convolutions, first decoder round, first graph block; up to 3 tracks',
             'source': 'live_forward_hooks', 'timing': 'host_wall_including_nested_observers',
             'note': 'Actual sampled values; unsampled frames and expired replay events are counted. No inference replay.'}
+
+# The paired schedule can exceed the 768 KiB frame budget when a block with
+# 2304 temporal terms meets a YOLO group containing two 2304-term
+# representative convolutions. The measured four worst pairings (blocks 7/9
+# with groups {4..7} or {20..23}) emitted 779,121-785,608 B and dropped 2-3
+# classifier rows. On such odd subframes capture two modules instead of four;
+# the deferred modules recur on lighter pairings, and the coverage event
+# advertises only the modules that were actually scheduled.
+DETAIL_HEAVY_BLOCK_TERMS = 2304
+DETAIL_HEAVY_CONV_TERMS = 2304
+DETAIL_HEAVY_GROUP_MODULES = 2
+DETAIL_FALLBACK_MODULES = 2
 
 
 def sample_tensor(value, axes, limits, first_axes=()):
@@ -93,6 +106,8 @@ class LiveTrace:
         self.detail_block = 0
         self.detail_bytes = 0
         self.yolo_module_count = 0
+        self.yolo_module_terms = {}
+        self.stgcn_terms = []
         self.last_capture = float('-inf')
         self.active = False
         self.frame = -1
@@ -153,7 +168,15 @@ class LiveTrace:
         if not count:
             return set()
         start = (self.detail_index // 2) * 4
-        return {(start + offset) % count for offset in range(4)}
+        modules = [(start + offset) % count for offset in range(4)]
+        block = ((self.detail_index - 1) // 2) % 10
+        heavy_block = (block < len(self.stgcn_terms)
+                       and self.stgcn_terms[block] >= DETAIL_HEAVY_BLOCK_TERMS)
+        heavy_modules = sum(self.yolo_module_terms.get(index, 0) >= DETAIL_HEAVY_CONV_TERMS
+                            for index in modules)
+        if heavy_block and heavy_modules >= DETAIL_HEAVY_GROUP_MODULES:
+            modules = modules[:DETAIL_FALLBACK_MODULES]
+        return set(modules)
 
     def begin_behavior(self, track_ids, histories=None):
         self.track_ids = [int(x) for x in track_ids[:3]]
@@ -261,6 +284,13 @@ class LiveTrace:
                                        else self._scheduled_yolo_modules())
             fused = bool(getattr(network, 'is_fused', lambda: False)())
             if self.detail:
+                from .model_catalog import select_representative_conv
+                terms = {}
+                for index, module in enumerate(network.model):
+                    selection = select_representative_conv(module, fused=fused)
+                    if selection is not None:
+                        terms[index] = selection.term_count
+                self.yolo_module_terms = terms
                 self.arithmetic.attach_yolo(network, fused, guard=lambda: bool(self.predictor.done_warmup))
             for index, module in enumerate(network.model):
                 def capture(inputs, output, duration, index=index, module=module):
@@ -299,6 +329,8 @@ class LiveTrace:
                     'cell': sample_tensor(cell, ['layer', 'track', 'hidden'], [10, 3, 16], (0, 1, 2)),
                 }, duration, step=self.round, module_type='LSTM')
             self._hook(predictor.lstm.lstm, recurrent)
+        self.stgcn_terms = [int(block.tcn[2].in_channels * block.tcn[2].kernel_size[0])
+                            for block in predictor.stgcn.st_gcn_networks]
         for index, block in enumerate(predictor.stgcn.st_gcn_networks):
             for name, module in (('spatial', block.gcn), ('temporal', block.tcn), ('output', block)):
                 def capture(inputs, output, duration, index=index, name=name):
