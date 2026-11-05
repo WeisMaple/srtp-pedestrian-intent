@@ -1,3 +1,5 @@
+import { Button } from './ui/Controls';
+import VideoPlayer from './ui/VideoPlayer';
 import { jobUrl } from '../api';
 import EmptyState from './EmptyState';
 
@@ -8,10 +10,10 @@ export default function Results({ job, onOpenCorridor }) {
     const metrics = job.metrics || {};
     return <section className="results-page">
         <header><span className="mono">RESULT / 一次真实推理</span><h1>结果与下载</h1>
-            <button className="blueprint-button" onClick={onOpenCorridor}>回到长廊</button></header>
+            <Button className="blueprint-button" onClick={onOpenCorridor}>回到长廊</Button></header>
         <div className="results-grid">
             <div className="results-video blueprint-panel">
-                {job.outputs?.video ? <video src={jobUrl(job.id, '/files/video')} controls playsInline /> : <p>结果视频尚未生成。</p>}
+                {job.outputs?.video ? <VideoPlayer src={jobUrl(job.id, '/files/video')} label="结果视频" /> : <p>结果视频尚未生成。</p>}
             </div>
             <aside className="results-metrics blueprint-panel">
                 <div><span>处理帧</span><b>{metrics.frames ?? job.processed_frames ?? '—'}</b></div>

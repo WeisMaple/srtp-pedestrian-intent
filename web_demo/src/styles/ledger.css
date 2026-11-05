@@ -14,7 +14,7 @@
 .ledger-row.accumulated { color: var(--focus); }
 .ledger-row.disconnected, .ledger-row.unrecorded, .ledger-row.padding { color: var(--muted); }
 .ledger-empty { padding: 16px; color: var(--muted); }
-.lens-panel { position: absolute; right: 16px; bottom: 16px; width: min(560px, 46vw); max-height: 54vh; z-index: 10; overflow: hidden; }
+.lens-panel { position: absolute; right: 16px; bottom: 16px; width: min(620px, calc(100% - 32px)); max-height: calc(100% - 120px); z-index: 10; overflow: auto; }
 .lens-panel header { display: flex; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line-dim); }
 .lens-panel header span { display: block; font: 10px var(--font-mono); color: var(--muted); letter-spacing: .12em; }
 .lens-panel header strong { font-size: 14px; }
@@ -22,3 +22,13 @@
 .lens-equation { padding: 8px 12px; color: var(--current); font-size: 12px; }
 .lens-summary { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0 12px 8px; font-size: 11px; color: var(--text-2); }
 .lens-summary b { color: var(--text-1); font-weight: 500; }
+.lens-panel header { position: sticky; top: 0; background: var(--bg-2); z-index: 1; }
+.lens-panel .numeric-ledger { max-height: none; }
+.ledger-row > span { min-width: 0; overflow-wrap: anywhere; }
+.ledger-tools, .ledger-tools > div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ledger-table { min-width: 480px; }
+.numeric-ledger { scrollbar-gutter: stable; }
+@media (max-width: 600px) {
+    .ledger-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .lens-panel { right: 8px; width: calc(100% - 16px); bottom: 8px; max-height: calc(100% - 110px); }
+}

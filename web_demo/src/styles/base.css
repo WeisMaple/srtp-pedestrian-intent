@@ -10,6 +10,7 @@ body {
 }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .app-shell { height: 100%; display: flex; flex-direction: column; }
 .app-main { flex: 1; min-height: 0; position: relative; }
@@ -33,4 +34,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .blueprint-button[disabled] { opacity: 0.4; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+@media (max-width: 760px) {
+    .app-top { height: auto; min-height: var(--top-height); flex-wrap: wrap; gap: 6px 12px; padding: 10px 12px; }
+    .app-brand { font-size: 12px; letter-spacing: .08em; }
+    .app-status { font-size: 10px; }
+    .app-nav { order: 3; width: 100%; }
+    .app-nav button { flex: 1; padding: 6px 8px; }
 }

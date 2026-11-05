@@ -1,4 +1,4 @@
-export async function request(path, options = {}) {
+export async function request(path, options = {}, responseType = 'json') {
     const response = await fetch(path, options);
     if (!response.ok) {
         let message = `请求失败（${response.status}）`;
@@ -10,7 +10,7 @@ export async function request(path, options = {}) {
         error.status = response.status;
         throw error;
     }
-    return response.json();
+    return responseType === 'text' ? response.text() : response.json();
 }
 
 export const jobUrl = (id, suffix = '') => `/api/jobs/${encodeURIComponent(id)}${suffix}`;

@@ -1,0 +1,47 @@
+.computation-desk { border-top: 1px solid var(--line-soft); background: var(--bg-1); padding: 16px 20px; max-height: 46vh; overflow: auto; scrollbar-gutter: stable; }
+.process-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.process-kicker { color: var(--focus); font-size: 11px; letter-spacing: .08em; }
+.process-heading h2 { margin: 2px 0 0; font-size: 18px; font-weight: 500; }
+.process-connection { margin-left: auto; font-size: 12px; color: var(--text-2); }
+.process-connection::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--focus); }
+.process-connection.has-error { color: var(--current); }
+.process-connection.has-error::before { background: var(--current); }
+.process-description { margin: 8px 0 12px; color: var(--text-2); font-size: 13px; }
+.process-flow { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 24px; }
+.process-flow > div { position: relative; min-width: 0; padding: 8px 12px; border-left: 2px solid var(--line-soft); background: var(--bg-2); }
+.process-flow > div + div::before { content: '→'; position: absolute; left: -21px; top: 50%; transform: translateY(-50%); color: var(--focus); }
+.process-flow small { display: block; font-size: 11px; color: var(--text-2); }
+.process-flow strong { display: block; font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.process-notice { margin: 10px 0 0; color: var(--current); font-size: 12px; }
+.process-button { border: 1px solid var(--line-soft); border-radius: 4px; background: var(--focus-soft); color: var(--focus); padding: 6px 10px; font-size: 12px; }
+.process-button:hover { border-color: var(--focus); }
+.process-terms { margin-top: 10px; border-top: 1px solid var(--line-dim); }
+.process-terms summary { cursor: pointer; padding: 10px 0; color: var(--focus); font-size: 12px; }
+.process-terms summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.process-terms .numeric-ledger { max-height: none; padding: 8px 0; }
+.arithmetic-inspector { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-dim); }
+.arithmetic-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.arithmetic-title strong { font-weight: 500; font-size: 13px; }
+.arithmetic-title > span { font-size: 11px; color: var(--text-2); }
+.arithmetic-equation { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 10px 0; color: var(--current); font-size: clamp(16px, 1.3vw, 22px); overflow-wrap: anywhere; }
+.arithmetic-equation i { color: var(--text-2); font-style: normal; }
+.arithmetic-values { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.arithmetic-values dt { font-size: 11px; color: var(--text-2); }
+.arithmetic-values dd { margin: 2px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+.arithmetic-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.arithmetic-controls label { flex: 1; min-width: 100px; display: grid; color: var(--text-2); font-size: 11px; }
+.arithmetic-controls input { width: 100%; accent-color: var(--current); }
+.arithmetic-controls button { border: 1px solid var(--line-soft); color: var(--text-2); background: transparent; padding: 6px 8px; border-radius: 4px; font-size: 11px; }
+.arithmetic-controls button:hover { border-color: var(--current); color: var(--current); }
+.arithmetic-note { font-size: 11px; color: var(--text-2); margin: 8px 0 0; }
+.lens-panel .arithmetic-inspector, .record-lens .arithmetic-inspector { padding: 12px; margin: 0; }
+.lens-panel .arithmetic-values, .record-lens .arithmetic-values { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .arithmetic-values { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+    .computation-desk { padding: 14px 12px; max-height: none; }
+    .process-heading h2 { font-size: 16px; }
+    .process-connection { margin-left: 0; }
+    .process-flow { grid-template-columns: 1fr; gap: 14px; }
+    .process-flow > div + div::before { content: '↓'; left: auto; right: 12px; top: -9px; }
+    .arithmetic-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

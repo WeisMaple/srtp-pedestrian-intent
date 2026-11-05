@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLiveState, reduceLiveEvent, setLiveFrozen, visibleLiveState, normalizeLiveNodes } from '../src/liveComputation.js';
+import { createLiveState, reduceLiveEvent, setLiveFrozen, visibleLiveState, normalizeLiveNodes, displayLiveSnapshot } from '../src/liveComputation.js';
 import { mergeDetail } from '../src/domain/model.js';
 
 const event = (seq, frame, node = 'yolo.0', extra = {}) => ({
@@ -8,6 +8,30 @@ const event = (seq, frame, node = 'yolo.0', extra = {}) => ({
     stage: 1, track_ids: [], captured_at_ms: 123, duration_ms: 2, tensors: {}, ...extra,
 });
 const tensor = (axes, shape, indices, values) => ({ axes, shape, sample_shape: indices.map(axis => axis.length), indices, values });
+
+test('display keeps the last completed frame during inference and clears people on a real empty output', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'computation', event(1, 8, 'pipeline.output', {
+        tracks: [{ track_id: 7, history_length: 30 }],
+    }));
+    state = reduceLiveEvent(state, 'computation', event(2, 9, 'pipeline.frame'));
+    assert.equal(state.snapshot.frame, 9);
+    assert.equal(displayLiveSnapshot(state).frame, 8);
+    assert.equal(displayLiveSnapshot(state).tracks[0].track_id, 7);
+    state = reduceLiveEvent(state, 'computation', event(3, 9, 'pipeline.output', { tracks: [] }));
+    assert.equal(displayLiveSnapshot(state).frame, 9);
+    assert.deepEqual(displayLiveSnapshot(state).tracks, []);
+});
+
+test('completed display respects freeze and gap recovery', () => {
+    let state = reduceLiveEvent(createLiveState('job-a'), 'computation', event(1, 8, 'pipeline.output', { tracks: [] }));
+    state = setLiveFrozen(state, true);
+    state = reduceLiveEvent(state, 'computation', event(2, 9, 'pipeline.output', { tracks: [{ track_id: 7 }] }));
+    assert.equal(displayLiveSnapshot(visibleLiveState(state)).frame, 8);
+    state = setLiveFrozen(state, false);
+    assert.equal(displayLiveSnapshot(state).frame, 9);
+    state = reduceLiveEvent(state, 'gap', { job_id: 'job-a', seq: 3, reset: true });
+    assert.equal(displayLiveSnapshot(state), null);
+});
 
 test('ordered events ignore duplicates, old sequence IDs, and other jobs', () => {
     let state = reduceLiveEvent(createLiveState('job-a'), 'computation', event(2, 3), 1000);

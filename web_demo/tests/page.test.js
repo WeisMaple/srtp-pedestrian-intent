@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { PAGES, hashForPage, pageFromHash } from '../src/app/page.js';
 
 test('known hashes map to pages', () => {
-    assert.deepEqual(PAGES, ['workbench', 'corridor', 'results']);
+    assert.deepEqual(PAGES, ['workbench', 'corridor', 'camera', 'results']);
     assert.equal(pageFromHash('#/workbench'), 'workbench');
     assert.equal(pageFromHash('#/corridor'), 'corridor');
     assert.equal(pageFromHash('#/results'), 'results');
+    assert.equal(pageFromHash('#/camera'), 'camera');
 });
 
 test('unknown or empty hashes fall back to workbench', () => {

@@ -14,6 +14,25 @@ test('selecting a step pauses auto narration and resets the beat', () => {
     assert.equal(next.paused, true);
 });
 
+test('manual next step advances while narration is paused and stops at the final step', () => {
+    const paused = { ...createCorridorState(), step: 2, beat: 1, paused: true, frozen: true };
+    const next = corridorReducer(paused, { type: 'next' });
+    assert.equal(next.step, 3);
+    assert.equal(next.beat, 0);
+    assert.equal(next.paused, true);
+    assert.equal(next.frozen, true);
+    assert.equal(corridorReducer({ ...next, step: 6 }, { type: 'next' }).step, 6);
+});
+
+test('inspecting a calculation pauses narration without freezing the incoming stream', () => {
+    const inspected = corridorReducer(createCorridorState(), { type: 'term', index: 2.5 });
+    assert.equal(inspected.paused, true);
+    assert.equal(inspected.following, false);
+    assert.equal(inspected.frozen, false);
+    assert.equal(inspected.termIndex, 2.5);
+    assert.equal(corridorReducer({ ...inspected, frozen: true }, { type: 'term', index: 3 }).frozen, true);
+});
+
 test('narration advances only when the step is ready', () => {
     const state = { ...createCorridorState(), step: 2, ready: false };
     assert.equal(advanceNarration(state, { snapshot: {}, job: {} }).beat, 0);
@@ -59,8 +78,24 @@ test('manual beat stepping pauses narration and clamps within the step', () => {
     assert.equal(clamped.paused, true);
 });
 
+test('scrubbing the lecture pins the chosen beat instead of immediately advancing it', () => {
+    const sought = corridorReducer({ ...createCorridorState(), step: 2 }, { type: 'beat', beat: 1 });
+    assert.equal(sought.beat, 1);
+    assert.equal(sought.paused, true);
+    assert.equal(sought.autoGraph, false);
+    assert.equal(advanceNarration(sought, {}), sought);
+});
+
+test('pausing completed narration leaves the selected computation playable', () => {
+    const state = corridorReducer(createCorridorState(), { type: 'step', step: 4 });
+    const paused = corridorReducer(state, { type: 'pause-narration' });
+    assert.equal(paused.paused, true);
+    assert.equal(paused.frozen, false);
+    assert.equal(paused.autoGraph, true);
+});
+
 test('narration stops at the final beat of step six instead of looping', () => {
-    const lastBeat = { ...createCorridorState(), step: 6, beat: 1, ready: true };
+    const lastBeat = { ...createCorridorState(), step: 6, beat: 1, ready: true, intentDetail: false };
     const final = advanceNarration(lastBeat, {});
     assert.equal(final.step, 6);
     assert.equal(final.beat, 2);
@@ -71,6 +106,18 @@ test('narration stops at the final beat of step six instead of looping', () => {
     assert.equal(stopped.paused, true);
     assert.equal(stopped.following, false);
     assert.equal(advanceNarration(stopped, {}), stopped);
+});
+
+test('intent arithmetic owns its clock, and manual class or term selection pauses it', () => {
+    const active = corridorReducer(createCorridorState(), { type: 'step', step: 6 });
+    assert.equal(advanceNarration({ ...active, paused: false }, {} ).beat, 0);
+    const tick = corridorReducer(active, { type: 'intent-tick', beat: 1, index: 30 });
+    assert.equal(tick.termIndex, 30); assert.equal(tick.beat, 1);
+    const chosen = corridorReducer(tick, { type: 'intent-class', index: 0 });
+    assert.equal(chosen.intentClass, 0); assert.equal(chosen.autoGraph, false);
+    assert.equal(corridorReducer(chosen, { type: 'intent-tick', beat: 2, index: 256 }), chosen);
+    const result = corridorReducer(tick, { type: 'intent-mode', value: false });
+    assert.equal(result.intentDetail, false); assert.equal(result.autoGraph, false);
 });
 
 test('auto narration advances while snapshot object identity changes', async () => {
@@ -109,4 +156,26 @@ test('auto narration advances while snapshot object identity changes', async () 
         delete globalThis.window;
         delete globalThis.IS_REACT_ACT_ENVIRONMENT;
     }
+});
+
+test('automatic convolution ticks do not freeze live input; manual inspection pins the animation', () => {
+    const auto = corridorReducer(createCorridorState(), { type: 'graph-auto', value: true });
+    const tick = corridorReducer(auto, { type: 'graph-tick', index: 2.5 });
+    assert.equal(tick.termIndex, 2.5);
+    assert.equal(tick.autoGraph, true);
+    assert.equal(tick.frozen, false);
+    const manual = corridorReducer(tick, { type: 'term', index: 7 });
+    assert.equal(manual.autoGraph, false);
+    assert.equal(manual.termIndex, 7);
+    const next = corridorReducer(tick, { type: 'graph-next', block: 6, boundary: true });
+    assert.equal(next.block, 6);
+    assert.equal(next.boundary, true);
+    assert.equal(next.termIndex, 0);
+});
+
+test('detailed temporal playback owns the clock until the user leaves it', () => {
+    const state = { ...createCorridorState(), step: 5, beat: 2, ready: true };
+    assert.equal(advanceNarration(state, {}), state);
+    assert.equal(advanceNarration({ ...state, autoGraph: false }, {}).step, 6);
+    assert.equal(advanceNarration({ ...state, operation: 'spatial' }, {}).step, 6);
 });

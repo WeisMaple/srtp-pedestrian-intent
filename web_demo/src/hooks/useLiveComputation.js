@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { jobUrl } from '../api';
-import { createLiveState, reduceLiveEvent, setLiveFrozen, visibleLiveState } from '../liveComputation';
+import { createLiveState, reduceLiveEvent, setLiveFrozen, visibleLiveState, displayLiveSnapshot } from '../liveComputation';
 
 const PUBLISH_INTERVAL_MS = 100;
 
@@ -88,7 +88,7 @@ export function useLiveComputation(job, enabled = true) {
     const resume = useCallback(() => freeze(false), [freeze]);
     const retry = useCallback(() => setRevision(value => value + 1), []);
 
-    return { snapshot: state.snapshot, latestEvent: state.latestEvent, events: state.events,
+    return { snapshot: displayLiveSnapshot(state), latestEvent: state.latestEvent, events: state.events,
         calculations: state.calculations, connection: state.connection, error: state.error, frozen: state.frozen,
         freeze, toggleFreeze, resume, retry, receivedAt: state.receivedAt, latestSeq: state.latestSeq };
 }

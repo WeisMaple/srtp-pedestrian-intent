@@ -1,3 +1,4 @@
+import { Button } from './ui/Controls';
 import { useEffect, useRef, useState } from 'react';
 import { createCorridorScene } from '../scene/corridorScene';
 import { liveLayerModel } from '../domain/liveLayers';
@@ -40,7 +41,7 @@ export default function CorridorStage({ step, track, live, trackId, structure, o
     </div>;
     return <div className="corridor-stage-shell">
         <div className="corridor-stage" ref={host} />
-        <button className="camera-reset" type="button" aria-label="重置视角"
-            onClick={() => engine.current?.reset()}>重置视角</button>
+        <Button className="camera-reset" type="button" aria-label="重置视角"
+            onClick={() => engine.current?.reset()}>重置视角</Button>
     </div>;
 }

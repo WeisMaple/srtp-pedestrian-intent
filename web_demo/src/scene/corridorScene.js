@@ -8,6 +8,7 @@ import { buildFeatureLayer, updateFeatureLayer } from './featureLayer.js';
 import { buildMemoryLayer, updateMemoryLayer } from './memoryLayer.js';
 import { buildGraphLayer, updateGraphLayer } from './graphLayer.js';
 import { buildIntentLayer, updateIntentLayer } from './intentLayer.js';
+import { fitInBay } from './fit.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -40,18 +41,19 @@ export function createCorridorScene(host, { onPick, onError, onCameraInteract } 
     const pickables = [];
     let step = 1, motion = null, disposed = false, frame = 0, lastTime = performance.now();
 
-    function makeLabel(text, position, size = 0.32, color = COLORS.line) {
+    function makeLabel(text, position, size = 0.32, color = COLORS.line, compact = false) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 512; canvas.height = 64;
+        canvas.width = compact ? 128 : 512; canvas.height = 64;
         context.font = '500 32px "SFMono-Regular", Menlo, monospace';
         context.textAlign = 'center'; context.textBaseline = 'middle';
         context.fillStyle = '#' + new THREE.Color(color).getHexString();
-        context.fillText(text, 256, 32);
+        context.fillText(text, canvas.width / 2, 32);
         const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
-        sprite.position.set(...position); sprite.scale.set(5 * size * 2, 0.62 * size * 2, 1);
-        sprite.renderOrder = 4; root.add(sprite); return sprite;
+        sprite.position.set(...position);
+        sprite.scale.set(compact ? 0.72 : 5 * size * 2, compact ? 0.32 : 0.62 * size * 2, 1);
+        sprite.renderOrder = 4; return sprite;
     }
 
     function bayGroup(bay) {
@@ -60,25 +62,28 @@ export function createCorridorScene(host, { onPick, onError, onCameraInteract } 
         plate.position.set(0, 1.9, 0); plate.rotation.x = -Math.PI / 2; group.add(plate);
         const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(5.8, 4.2, 3.2)), lineMaterial(COLORS.line, 0.28));
         box.position.set(0, 1.4, 0); group.add(box);
-        makeLabel('0' + bay.step + ' / ' + bay.label, [0, 4.3, 0], 0.3);
+        group.add(makeLabel('0' + bay.step + ' / ' + bay.label, [0, 3.16, 0], 0.55));
         group.userData.bay = bay; pickables.push(box); return group;
     }
     BAYS.forEach(bay => bays.set(bay.step, bayGroup(bay)));
 
     const feature = buildFeatureLayer(24);
-    feature.group.position.set(...BAYS[1].position).add(V(0, 1.5, 0)); root.add(feature.group);
+    feature.points.forEach((mesh, index) => {
+        const label = makeLabel(`#${index}`, [mesh.position.x, mesh.position.y, mesh.position.z + 0.03], 0.12, COLORS.line, true);
+        feature.group.add(label);
+    });
+    bays.get(2).add(feature.group); fitInBay(feature.group);
     feature.points.forEach(mesh => pickables.push(mesh));
     const memory = buildMemoryLayer();
-    memory.group.position.set(...BAYS[3].position).add(V(0, 1.2, 0)); root.add(memory.group);
+    bays.get(4).add(memory.group); fitInBay(memory.group);
     const graph = buildGraphLayer();
-    graph.group.position.set(...BAYS[4].position).add(V(0, 1.4, 0)); root.add(graph.group);
+    bays.get(5).add(graph.group);
     pickables.push(graph.points);
     const intent = buildIntentLayer(['其他', '不过街', '过街']);
-    intent.group.position.set(...BAYS[5].position).add(V(0, 1, 0)); root.add(intent.group);
+    bays.get(6).add(intent.group); fitInBay(intent.group);
 
     const ribbon = new THREE.Group();
-    ribbon.position.set(...BAYS[2].position).add(V(0, 1.2, 0));
-    root.add(ribbon);
+    bays.get(3).add(ribbon);
     let trackSignature = 'none';
     function setTrack(track, { frame = null, poses = null } = {}) {
         // Same ID does not mean the same ribbon: history and pose change on
@@ -92,12 +97,14 @@ export function createCorridorScene(host, { onPick, onError, onCameraInteract } 
             disposeObject(child);
         }
         if (track) ribbon.add(buildRibbonGroup(track, { poses }));
+        fitInBay(ribbon);
     }
 
     function frameCamera(animate = true) {
-        const pose = cameraForStep(step);
-        controls.target.set(...pose.target);
+        const pose = cameraForStep(step, { aspect: camera.aspect });
+        bays.forEach((group, number) => { group.visible = number === step; });
         if (!animate || prefersReducedMotion()) {
+            controls.target.set(...pose.target);
             camera.position.set(...pose.position); camera.lookAt(...pose.target); motion = null; return;
         }
         motion = { target: V(...pose.target), position: V(...pose.position) };
@@ -107,15 +114,15 @@ export function createCorridorScene(host, { onPick, onError, onCameraInteract } 
         lastTime = now;
         if (!motion) return;
         camera.position.lerp(motion.position, 1 - Math.pow(1 - 0.08, delta * 60));
-        const look = camera.position.clone().add(motion.target.clone().sub(camera.position).normalize().multiplyScalar(10));
-        camera.lookAt(look);
+        controls.target.lerp(motion.target, 1 - Math.pow(1 - 0.08, delta * 60));
         if (camera.position.distanceTo(motion.position) < 0.03) {
-            camera.position.copy(motion.position); camera.lookAt(motion.target); motion = null;
+            camera.position.copy(motion.position); controls.target.copy(motion.target); motion = null;
         }
     }
     function resize() {
         const width = Math.max(1, host.clientWidth), height = Math.max(1, host.clientHeight);
         renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix();
+        frameCamera(false);
     }
     const observer = new ResizeObserver(resize); observer.observe(host); resize();
 
@@ -128,6 +135,9 @@ export function createCorridorScene(host, { onPick, onError, onCameraInteract } 
         raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
             -(event.clientY - rect.top) / rect.height * 2 + 1), camera);
         for (const hit of raycaster.intersectObjects(pickables, false)) {
+            let ancestor = hit.object;
+            while (ancestor && ancestor.visible) ancestor = ancestor.parent;
+            if (ancestor) continue;
             const module = hit.object.userData?.module;
             if (Number.isInteger(module)) {
                 if (step === 2) onPick?.({ kind: 'module', module });
@@ -175,8 +185,11 @@ export function createCorridorScene(host, { onPick, onError, onCameraInteract } 
             setTrack(model.track, { frame: model.frame, poses: model.history?.poses || null });
             updateFeatureLayer(feature, model);
             updateMemoryLayer(memory, model.memory);
+            fitInBay(memory.group);
             updateGraphLayer(graph, model.track?.keypoints || null);
+            fitInBay(graph.group);
             updateIntentLayer(intent, model.intent.probabilities);
+            fitInBay(intent.group);
         },
         dispose() {
             disposed = true; cancelAnimationFrame(frame); observer.disconnect();

@@ -73,10 +73,10 @@ def _spatial_arithmetic(module, inputs, output, projected, joint):
             'complete_sum': True}
 
 
-def _temporal_arithmetic(module, inputs, output, joint):
+def _temporal_arithmetic(module, inputs, output, joint, timestep=None):
     """All input-channel x kernel terms, including true convolution padding."""
     value = inputs[0]
-    timestep = output.shape[2] // 2
+    timestep = output.shape[2] // 2 if timestep is None else timestep
     kernel, stride = module.kernel_size[0], module.stride[0]
     padding, dilation = module.padding[0], module.dilation[0]
     times = [timestep * stride - padding + offset * dilation for offset in range(kernel)]
@@ -87,7 +87,7 @@ def _temporal_arithmetic(module, inputs, output, joint):
     bias = float(module.bias[0]) if module.bias is not None else 0.
     return {'timestep': timestep, 'output_channel': 0, 'output_joint': joint,
             'input_timesteps': times, 'input_values': _values(window), 'weights': _values(weights),
-            'products': _values(products), 'input_channels': value.shape[1],
+            'products': _values(products), 'input_channels': value.shape[1], 'input_length': value.shape[2],
             'kernel_size': kernel, 'stride': stride, 'padding': padding, 'dilation': dilation,
             'bias': bias, **_sum_check(products, output[0, 0, timestep, joint], bias),
             'formula': 'conv[o,t,v] = sum_input_channel_c,sum_kernel_offset_q(W[o,c,q] * x[c,t*stride-padding+q*dilation,v]) + bias[o]',
@@ -322,6 +322,7 @@ def inspect_model(predictor, history, reference=None):
             def convolution_hook(module, inputs, output, record=details, selected_joint=joint):
                 arithmetic = _temporal_arithmetic(module, inputs, output, selected_joint)
                 record['arithmetic']['temporal'] = arithmetic
+                record['arithmetic']['temporal_boundary'] = _temporal_arithmetic(module, inputs, output, selected_joint, 0)
                 record['arithmetic']['sampling']['temporal_timestep'] = arithmetic['timestep']
 
             def temporal_hook(module, inputs, output, record=details, state=observed, selected_joint=joint):

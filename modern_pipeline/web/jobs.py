@@ -26,7 +26,9 @@ STAGES = ['读取视频帧', '提取 COCO17 骨架', '分配并跟踪行人 ID',
 
 
 class JobBusy(ValueError):
-    pass
+    def __init__(self, message, code='busy'):
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass
@@ -69,6 +71,7 @@ class JobManager:
         self.jobs = {}
         self.active = None
         self.network_active = False
+        self.camera_active = False
         self.network_cache = OrderedDict()
         self.network_predictor = None
         self.frontend_cache = OrderedDict()
@@ -106,7 +109,30 @@ class JobManager:
     def health(self):
         return {'models_ready': self.config is not None, 'encoder_ready': bool(shutil.which('ffmpeg')),
                 'model_name': '行人意图预测 · v' + self.config.get('version', '1.0.0') if self.config else '模型未就绪',
-                'device': 'cpu', 'active_job': self.active, 'detail': self.model_error}
+                'device': 'cpu', 'active_job': self.active, 'camera_active': self.camera_active,
+                'detail': self.model_error}
+
+    def open_camera(self):
+        from .camera import CameraSession
+        with self.lock:
+            if self.active is not None or self.network_active:
+                raise JobBusy('视频、摄像头或网络计算正在运行，请先停止当前任务。',
+                              code='camera_busy' if self.camera_active else 'busy')
+            if self.config is None:
+                raise RuntimeError(self.model_error or '模型未就绪。')
+            self.network_active = True
+            self.camera_active = True
+        try:
+            return CameraSession.from_models(self.model_dir, self.config)
+        except BaseException:
+            self.close_camera()
+            raise
+
+    def close_camera(self):
+        with self.lock:
+            if self.camera_active:
+                self.camera_active = False
+                self.network_active = False
 
     def get(self, job_id):
         with self.lock:

@@ -19,13 +19,15 @@ export function uploadHint(file, modelsReady) {
  * Pick the recorded calculation for the inspected object only.
  * YOLO module indices are zero-based end to end. ST-GCN structure blocks are
  * labelled 1–10, while live detail rows use zero-based block ordinals.
+ * Explicit null means no selected person; an omitted ID allows unscoped lookup.
  */
 const sameTrack = (left, right) => left != null && right != null && String(left) === String(right);
 
-export function latestCalculation(snapshot, step, structure, moduleIndex, blockIndex, trackId = null, cachedRows = []) {
+export function latestCalculation(snapshot, step, structure, moduleIndex, blockIndex, trackId, cachedRows = [], selection = null) {
     if (!snapshot || !structure) return null;
+    if (step >= 4 && trackId === null) return null;
     const rows = [...cachedRows,
-        ...Object.values(snapshot.nodes || {}).flatMap(node => node.calculations || [])];
+        ...Object.values(snapshot.nodes || {}).flatMap(node => node.calculations || [])].reverse();
     const onTrack = row => trackId == null || sameTrack(row.track_id, trackId);
     if (step === 2) {
         return snapshot.details?.yolo?.[moduleIndex]
@@ -39,9 +41,21 @@ export function latestCalculation(snapshot, step, structure, moduleIndex, blockI
     if (step === 5) {
         const ordinal = blockIndex - 1;
         const detailRows = snapshot.details?.stgcn?.[ordinal] || [];
-        return detailRows.find(row => onTrack(row))
+        if (selection) {
+            const matches = row => onTrack(row) && row.stage === selection.operation
+                && (row.stage !== 'temporal' || Boolean(row.metadata?.boundary) === Boolean(selection.boundary));
+            return [...detailRows].reverse().find(matches)
+                || rows.find(row => row.metadata?.block === ordinal && matches(row)) || null;
+        }
+        return [...detailRows].reverse().find(row => row.stage === 'spatial' && onTrack(row))
+            || [...detailRows].reverse().find(row => onTrack(row))
             || rows.find(row => row.stage === 'spatial' && row.metadata?.block === ordinal && onTrack(row)) || null;
     }
-    if (step === 6) return rows.find(row => row.stage === 'classifier' && onTrack(row)) || null;
+    if (step === 6) {
+        const scoped = selection?.classIndex == null ? rows : Object.values(snapshot.nodes || {})
+            .filter(event => event.frame === snapshot.frame).flatMap(event => event.calculations || []);
+        return scoped.find(row => row.stage === 'classifier' && onTrack(row)
+            && (selection?.classIndex == null || row.metadata?.selected_class === selection.classIndex)) || null;
+    }
     return null;
 }

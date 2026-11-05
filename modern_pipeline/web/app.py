@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 import json
 from pathlib import Path
 import tempfile
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
@@ -30,6 +31,43 @@ def create_app(manager=None, max_upload_bytes=500 * 1024 * 1024):
     @app.get('/api/health')
     def health():
         return manager.health()
+
+    @app.websocket('/api/camera/live')
+    async def camera_live(socket: WebSocket):
+        origin = socket.headers.get('origin')
+        if origin and urlsplit(origin).netloc != socket.headers.get('host'):
+            await socket.close(code=1008)
+            return
+        await socket.accept()
+        session = None
+        try:
+            session = await run_in_threadpool(manager.open_camera)
+            await socket.send_json({'type': 'ready', 'device': 'cpu', 'history_required': 50})
+            while True:
+                message = await asyncio.wait_for(socket.receive(), timeout=30)
+                if message['type'] == 'websocket.disconnect':
+                    break
+                if message.get('bytes') is None:
+                    raise ValueError('请发送 JPEG 视频帧。')
+                result = await run_in_threadpool(session.process, message['bytes'])
+                await socket.send_json(result)
+        except WebSocketDisconnect:
+            pass
+        except asyncio.TimeoutError:
+            await socket.close(code=1000, reason='camera idle')
+        except JobBusy as exc:
+            await socket.send_json({'type': 'error', 'message': str(exc),
+                                    'code': exc.code})
+            await socket.close(code=1013)
+        except (ValueError, OSError, RuntimeError) as exc:
+            try:
+                await socket.send_json({'type': 'error', 'message': str(exc)})
+                await socket.close(code=1011)
+            except (WebSocketDisconnect, RuntimeError):
+                pass
+        finally:
+            if session is not None:
+                manager.close_camera()
 
     @app.get('/api/model')
     def model():

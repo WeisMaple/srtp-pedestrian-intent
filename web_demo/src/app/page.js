@@ -1,4 +1,4 @@
-export const PAGES = ['workbench', 'corridor', 'results'];
+export const PAGES = ['workbench', 'corridor', 'camera', 'results'];
 const DEFAULT_PAGE = 'workbench';
 
 export function pageFromHash(hash) {

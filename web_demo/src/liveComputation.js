@@ -5,7 +5,7 @@ const CALCULATION_LIMIT = 512;
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 export function createLiveState(jobId = null) {
-    return { jobId, snapshot: null, latestEvent: null, events: [], calculations: [], latestSeq: -1,
+    return { jobId, snapshot: null, completedSnapshot: null, latestEvent: null, events: [], calculations: [], latestSeq: -1,
         receivedAt: null, connection: 'idle', error: '', frozen: false, held: null,
         awaitingSnapshot: false, details: { yolo: {}, stgcn: {} } };
 }
@@ -51,26 +51,30 @@ export function reduceLiveEvent(state, type, payload, receivedAt = Date.now()) {
         connection: 'connected', events: appendActivity(state.events, row),
         calculations: mergeCalculations(state.calculations, payload.calculations) };
     if (type === 'gap') {
-        return { ...next, snapshot: null, latestEvent: null, calculations: [], awaitingSnapshot: true };
+        return { ...next, snapshot: null, completedSnapshot: null, latestEvent: null, calculations: [], awaitingSnapshot: true };
     }
     if (type === 'snapshot') {
         const nodes = currentNodes(payload.nodes, payload.frame, state.jobId, receivedAt);
         const latestEvent = Object.values(nodes).reduce((latest, node) =>
             !latest || node.seq > latest.seq ? node : latest, null);
-        return { ...next, snapshot: { ...payload, nodes, tracks: payload.tracks || [],
-                details: payload.details || { yolo: {}, stgcn: {} } },
+        const snapshot = { ...payload, nodes, tracks: payload.tracks || [],
+            details: payload.details || { yolo: {}, stgcn: {} } };
+        return { ...next, snapshot,
+            completedSnapshot: nodes['pipeline.output'] ? snapshot : state.completedSnapshot,
             latestEvent, awaitingSnapshot: false,
             calculations: mergeCalculations(next.calculations, snapshotCalculations(payload)) };
     }
     if (type === 'terminal') {
-        return { ...next, connection: 'complete', snapshot: state.snapshot ? {
+        return { ...next, connection: 'complete',
+            completedSnapshot: state.completedSnapshot ? { ...state.completedSnapshot, status: payload.status } : null,
+            snapshot: state.snapshot ? {
             ...state.snapshot, seq, status: payload.status, dropped: payload.dropped || state.snapshot.dropped,
         } : { ...payload, nodes: {}, tracks: [] } };
     }
     // A missed frame boundary is also safe: the first event for the next frame resets nodes.
     const sameFrame = state.snapshot?.frame === payload.frame;
     const previous = sameFrame ? state.snapshot : {};
-    return { ...next, latestEvent: row, awaitingSnapshot: false, snapshot: {
+    const snapshot = {
         ...previous, seq, job_id: state.jobId, status: previous.status || 'running',
         frame: payload.frame, time_seconds: payload.time_seconds,
         captured_at_ms: payload.captured_at_ms,
@@ -79,7 +83,14 @@ export function reduceLiveEvent(state, type, payload, receivedAt = Date.now()) {
         details: mergeDetail(state.snapshot, payload),
         dropped: { ...(state.snapshot?.dropped || {}), ...(payload.dropped || {}) },
         sampling: payload.sampling || state.snapshot?.sampling,
-    } };
+    };
+    return { ...next, latestEvent: row, awaitingSnapshot: false, snapshot,
+        completedSnapshot: payload.node === 'pipeline.output' ? snapshot : state.completedSnapshot };
+}
+
+/** Present one coherent sampled frame, rather than an empty half-finished forward. */
+export function displayLiveSnapshot(state) {
+    return state.completedSnapshot || state.snapshot;
 }
 
 export function visibleLiveState(state) {
@@ -89,7 +100,7 @@ export function visibleLiveState(state) {
 export function setLiveFrozen(state, frozen, displayed = state) {
     if (state.frozen === frozen) return state;
     return { ...state, frozen, held: frozen ? {
-        snapshot: displayed.snapshot, latestEvent: displayed.latestEvent,
+        snapshot: displayed.snapshot, completedSnapshot: displayed.completedSnapshot, latestEvent: displayed.latestEvent,
         events: displayed.events, calculations: displayed.calculations,
         receivedAt: displayed.receivedAt,
     } : null };

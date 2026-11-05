@@ -2,6 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatStatus, latestCalculation, uploadHint } from '../src/domain/workbench.js';
 
+test('current-frame arithmetic wins over an older cached calculation', () => {
+    const old = { stage: 'decoder', track_id: 4, id: 'old', actual: 1 };
+    const current = { stage: 'decoder', track_id: 4, id: 'current', actual: 2 };
+    const snapshot = { nodes: { 'lstm.1': { calculations: [current] } } };
+    assert.equal(latestCalculation(snapshot, 4, {}, 0, 1, 4, [old]).actual, 2);
+});
+
+test('an explicitly absent pedestrian cannot expose another person\'s cached arithmetic', () => {
+    const cached = ['decoder', 'spatial', 'classifier'].map(stage => ({
+        id: stage, stage, track_id: 4, metadata: { block: 0 },
+    }));
+    for (const step of [4, 5, 6]) {
+        assert.equal(latestCalculation({ nodes: {} }, step, {}, 0, 1, null, cached), null);
+    }
+});
+
+test('most recently collected graph detail is used for the selected pedestrian', () => {
+    const snapshot = { details: { stgcn: { 0: [
+        { stage: 'spatial', track_id: 4, id: 'old', actual: 1 },
+        { stage: 'spatial', track_id: 9, id: 'other', actual: 9 },
+        { stage: 'spatial', track_id: 4, id: 'new', actual: 2 },
+    ] } } };
+    assert.equal(latestCalculation(snapshot, 5, {}, 0, 1, 4).actual, 2);
+});
+
 test('status labels distinguish ready, busy and terminal jobs', () => {
     assert.equal(formatStatus({ status: 'ready' }), '等待开始');
     assert.equal(formatStatus({ status: 'running', progress: 0.4 }), '正在分析 40%');

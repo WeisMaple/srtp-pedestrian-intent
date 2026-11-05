@@ -9,12 +9,13 @@
 .drop-zone.dragging { border-color: var(--focus); background: var(--focus-soft); }
 .drop-zone strong { color: var(--text-1); font-weight: 500; }
 .workbench-light-table { align-self: center; overflow: hidden; }
-.workbench-light-table video { width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000; display: block; }
+.workbench-light-table video, .workbench-light-table img { width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000; display: block; }
 .light-table-empty { aspect-ratio: 16/9; display: grid; place-content: center; gap: 6px; text-align: center; color: var(--text-2); border-bottom: 1px solid var(--line-dim); }
 .light-table-empty span { color: var(--focus); font-size: 11px; letter-spacing: .18em; }
 .light-table-caption { padding: 8px 10px; color: var(--muted); font-size: 11px; }
 .workbench-steps { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-.workbench-steps > div { border-top: 1px solid var(--line-soft); padding-top: 8px; display: grid; gap: 3px; }
+.workbench-steps > button { border: 0; border-top: 1px solid var(--line-soft); background: none; text-align: left; padding: 8px 0 0; display: grid; gap: 3px; }
+.workbench-steps > button:hover { border-color: var(--focus); color: var(--focus); }
 .workbench-steps span { color: var(--focus); font-size: 10px; }
 .workbench-steps b { font-size: 12px; font-weight: 500; }
 .workbench-steps i { height: 1px; background: linear-gradient(90deg, var(--line-soft), transparent); }
@@ -24,6 +25,7 @@
 .workbench-job strong { font-weight: 500; }
 .job-progress { height: 3px; background: var(--line-dim); border-radius: 2px; overflow: hidden; margin-top: 6px; }
 .job-progress i { display: block; height: 100%; background: var(--focus); transform-origin: left; }
+.workbench-log { font-size: 12px; color: var(--text-2); margin: 6px 0; }
 .stage-step-tools { position: absolute; top: 76px; left: 12px; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line-dim); border-radius: 4px; background: rgba(6, 18, 37, .78); }
 .stage-step-tools label { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; }
 .stage-step-tools select { background: var(--bg-1); border: 1px solid var(--line-soft); border-radius: 3px; padding: 4px 6px; color: var(--text-1); font-size: 12px; }
@@ -46,3 +48,12 @@
 .empty-state { padding: 24px; display: grid; gap: 6px; }
 .empty-state strong { font-weight: 500; }
 .empty-state p { margin: 0; color: var(--text-2); }
+@media (max-width: 760px) {
+    .workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; padding: 24px 12px; gap: 20px; }
+    .workbench h1 { font-size: 32px; }
+    .workbench-kicker { font-size: 9px; letter-spacing: .04em; }
+    .workbench-steps { grid-template-columns: repeat(3, 1fr); }
+    .drop-zone { padding: 16px; overflow-wrap: anywhere; }
+    .results-grid { grid-template-columns: minmax(0, 1fr); }
+    .results-page header { flex-wrap: wrap; }
+}

@@ -127,6 +127,15 @@ class NetworkNumericsTests(unittest.TestCase):
                 self.assertAlmostEqual(float(products.sum()) + temporal['bias'], temporal['actual'], places=5)
                 position = (0, channel, temporal['timestep'], joint)
                 self.assertEqual(temporal['actual'], float(captured[index, 'conv'][position]))
+                boundary = arithmetic.get('temporal_boundary')
+                self.assertIsNotNone(boundary, 'Every completed block must expose a boundary window')
+                self.assertEqual(boundary['timestep'], 0)
+                self.assertEqual(boundary['input_timesteps'], [-4, -3, -2, -1, 0, 1, 2, 3, 4])
+                np.testing.assert_array_equal(np.array(boundary['input_values'])[:, :4], 0)
+                self.assertEqual(boundary['input_length'], block['input_shape'][2])
+                boundary_products = np.array(boundary['input_values']) * boundary['weights']
+                self.assertAlmostEqual(float(boundary_products.sum()) + boundary['bias'], boundary['actual'], places=5)
+                self.assertEqual(boundary['actual'], float(captured[index, 'conv'][0, channel, 0, joint]))
                 residual = arithmetic['residual']
                 self.assertEqual(residual['temporal'], float(captured[index, 'temporal'][position]))
                 expected_residual = (0. if index == 0 else float(captured[index, 'residual'][position])
