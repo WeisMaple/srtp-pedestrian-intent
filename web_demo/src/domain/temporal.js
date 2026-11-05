@@ -52,11 +52,15 @@ export function recordedGraphDetails(result) {
         const common = { track_id: source.track_id, activation: 'identity', source,
             metadata: { block: block.index - 1, source_frame: source.frame, source_kind: source.kind } };
         const spatial = block.arithmetic?.spatial;
+        const graphEdges = (block.effective_adjacency || []).flatMap((partition, k) => partition.flatMap((targets, v) =>
+            targets.flatMap((weight, w) => (result.stgcn.adjacency?.[k]?.[v]?.[w] ?? weight) !== 0 ? [[k, v, w, weight]] : [])));
         if (spatial) rows.push({ ...common, id: `record.${source.job_id}.${source.frame}.${source.track_id}.${block.index}.spatial`,
             stage: 'spatial', operation: 'spatial_aggregation', title: `记录重算 · 第 ${block.index} 块 · 空间聚合`,
             inputs: spatial.projected_values.flat(), weights: spatial.adjacency.flat(), bias: 0, actual: spatial.actual,
             connected: spatial.adjacency.flat().map(value => value !== 0), formula: spatial.formula,
-            input_indices: spatial.projected_values.flatMap((values, k) => values.map((_, v) => [k, spatial.timestep, v])) });
+            input_indices: spatial.projected_values.flatMap((values, k) => values.map((_, v) => [k, spatial.timestep, v])),
+            metadata: { ...common.metadata, target_indices: [spatial.output_channel, spatial.timestep, spatial.output_joint],
+                graph_slice: { edges: graphEdges, timestep: spatial.timestep } } });
         for (const boundary of [false, true]) {
             const value = block.arithmetic?.[boundary ? 'temporal_boundary' : 'temporal'];
             if (!value) continue;
@@ -67,7 +71,7 @@ export function recordedGraphDetails(result) {
                 inputs: value.input_values.flat(), weights: value.weights.flat(), bias: value.bias, actual: value.actual,
                 input_indices: indices, padding: indices.map(([, t]) => t < 0 || t >= value.input_length), formula: value.formula,
                 metadata: { ...common.metadata, boundary, kernel_size: value.kernel_size, stride: value.stride,
-                    convolution_padding: value.padding, dilation: value.dilation,
+                    convolution_padding: value.padding, dilation: value.dilation, input_length: value.input_length,
                     target_indices: [value.output_channel, value.timestep, value.output_joint] } });
         }
         stgcn[block.index - 1] = rows;

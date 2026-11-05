@@ -17,6 +17,7 @@ import { useRecordedGraph } from './hooks/useRecordedGraph';
 import { useAutomaticGraphSelection } from './hooks/useAutomaticGraphSelection';
 import { useFrameReplay } from './hooks/useFrameReplay';
 import { stepReady } from './domain/timeline';
+import { currentGraphRows } from './domain/spatiotemporal';
 import './styles/workbench.css';
 import './styles/ledger.css';
 
@@ -57,7 +58,13 @@ export default function App() {
         if (externalReadiness) actions.setReady(stepReady(state.step, viewLive, jobState.job));
     }, [externalReadiness, state.step, viewLive, jobState.job, actions]);
     useEffect(() => { replay.pause(); }, [state.step, state.intentDetail, replay.pause]);
-    const graphPick = useAutomaticGraphSelection(viewLive, replay.active ? [] : live.calculations,
+    const graphSnapshot = useMemo(() => {
+        if (!viewLive || state.step !== 5) return viewLive;
+        const stgcn = {};
+        for (const row of currentGraphRows(viewLive)) (stgcn[row.metadata.block] ||= []).push(row);
+        return { ...viewLive, details: { ...viewLive.details, stgcn } };
+    }, [viewLive, state.step]);
+    const graphPick = useAutomaticGraphSelection(graphSnapshot, state.step === 5 || replay.active ? [] : live.calculations,
         state, initialTrack?.track_id, { onWindow: actions.nextGraph, onTrack: record.active ? null : setSelectedTrackId });
     const viewState = graphPick ? { ...state, block: graphPick.block, boundary: graphPick.boundary } : state;
     const viewTrack = graphPick ? viewTracks.find(track => String(track.track_id) === String(graphPick.trackId)) || initialTrack : initialTrack;

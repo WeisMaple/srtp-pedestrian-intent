@@ -441,6 +441,12 @@ class LiveBuffer:
             else:
                 block = metadata.get('detail_block')
                 if block is not None:
+                    # Detail caches survive frame changes and omit their event
+                    # envelope in reconnect snapshots. Retain the original
+                    # provenance so views can bind them to matching poses.
+                    row = dict(row, source={'job_id': self.job_id,
+                                            'frame': event['frame'],
+                                            'kind': 'live_forward'})
                     self.details['stgcn'].setdefault(block, [])
                     self.details['stgcn'][block].append(row)
                     self.details['stgcn'][block] = self.details['stgcn'][block][-12:]

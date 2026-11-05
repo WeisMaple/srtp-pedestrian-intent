@@ -27,6 +27,20 @@ def stgcn_row(block, identity=None):
 
 
 class LiveDetailBufferTests(unittest.TestCase):
+    def test_reconnect_detail_rows_retain_original_job_and_frame(self):
+        buffer = LiveBuffer('source-job')
+        original = stgcn_row(0)
+        event = computation('flow.stgcn.spatial.block0', [original], frame=80)
+        event['detail'] = True
+        buffer.append(event)
+        buffer.append(computation('pipeline.frame', [], frame=81))
+        snapshot = buffer.snapshot('running')
+        row = snapshot['details']['stgcn'][0][0]
+        self.assertEqual(row['source'], {'job_id': 'source-job', 'frame': 80,
+                                        'kind': 'live_forward'})
+        self.assertNotIn('source', original)
+        self.assertNotIn('flow.stgcn.spatial.block0', snapshot['nodes'])
+
     def test_details_are_bounded_and_survive_snapshot(self):
         buffer = LiveBuffer('job-1')
         for module in range(5):

@@ -8,12 +8,13 @@ import ComputationDesk from './ComputationDesk';
 import LensPanel from './LensPanel';
 import RecordLens from './RecordLens';
 import PoseBindingStage from './PoseBindingStage';
-import TemporalConvolution from './TemporalConvolution';
+import SpatiotemporalComputation from './SpatiotemporalComputation';
 import LSTMComputation from './LSTMComputation';
 import ReplayTimeline from './ReplayTimeline';
 import IntentComputation from './IntentComputation';
 import { beatsForStep, STEPS } from '../domain/timeline';
 import { flowState } from '../domain/calculation';
+import { currentGraphRows } from '../domain/spatiotemporal';
 
 function yoloModuleLabel(module) {
     const type = module.type || '模块';
@@ -37,9 +38,9 @@ function StageSelectors({ state, actions, structure, live, track, job, recordOpe
     const modules = structure?.yoloModules || [];
     const blocks = structure?.stgcnBlocks || [];
     const collectedModules = Object.keys(live?.details?.yolo || {}).length;
-    const availableBlocks = Object.keys(live?.details?.stgcn || {}).filter(key => live.details.stgcn[key].some(row =>
-        String(row.track_id) === String(track?.track_id) && row.stage === state.operation
-        && (row.stage !== 'temporal' || Boolean(row.metadata?.boundary) === state.boundary)));
+    const availableBlocks = [...new Set(currentGraphRows(live).filter(row =>
+        String(row.track_id) === String(track?.track_id) && row.stage === 'temporal'
+        && Boolean(row.metadata?.boundary) === state.boundary).map(row => String(row.metadata.block)))];
     if (state.step === 2) {
         return <div className="stage-step-tools">
             <label><span className="mono">YOLO 模块</span>
@@ -75,12 +76,10 @@ function StageSelectors({ state, actions, structure, live, track, job, recordOpe
                         : <option value={state.block}>模型结构未就绪</option>}
                 </Select>
             </label>
-            <label>计算类型 <Select aria-label="ST-GCN 计算类型" value={state.operation} onChange={event => actions.selectOperation(event.target.value)}>
-                <option value="temporal">时间卷积</option><option value="spatial">空间邻域聚合</option></Select></label>
-            {state.operation === 'temporal' && <label>时间窗口 <Select aria-label="时序卷积窗口位置" value={state.boundary ? 'boundary' : 'middle'}
+            <label>时间窗口 <Select aria-label="时序卷积窗口位置" value={state.boundary ? 'boundary' : 'middle'}
                 onChange={event => actions.selectBoundary(event.target.value === 'boundary')}>
-                <option value="middle">中间窗口</option><option value="boundary">边界窗口 · 零填充</option></Select></label>}
-            {blocks.length > 0 && <small className="mono">当前类型已采集 {availableBlocks.length} / {blocks.length} 块</small>}
+                <option value="middle">中间窗口</option><option value="boundary">边界窗口 · 零填充</option></Select></label>
+            {blocks.length > 0 && <small className="mono">同帧时间窗口 {availableBlocks.length} / {blocks.length} 块 · 空间与时间同时展示</small>}
             {!availableBlocks.includes(String(state.block - 1)) && availableBlocks.length > 0 && <Button type="button" className="process-button"
                 onClick={() => actions.selectBlock(1 + Number(availableBlocks[0]))}>查看已采集块</Button>}
             {!blocks.length && <StructureRetry error={structureError} onRetry={onRetryStructure} />}
@@ -132,7 +131,7 @@ export default function Corridor({ job, live, stream, structure, structureError,
         return () => window.removeEventListener('keydown', onKey);
     }, [actions, lensOpen, terms.length, state.termIndex, state.autoGraph, state.frozen, record?.active, videoReplay, replay?.playing, replay?.pause, replay?.play, replay?.step]);
 
-    return <section className="corridor-page">
+    return <section className={`corridor-page ${state.step === 5 ? 'is-spatiotemporal' : ''}`}>
         <ContextRail job={job} live={live} tracks={tracks} track={selectedTrack} onSelect={id => { inspect(); onSelectTrack(id); }} recorded={replay?.active}
             onFrameReady={state.step > 3 || (state.step === 2 && showModules) ? replay?.onFrameReady : undefined} />
         <div className="corridor-main">
@@ -152,7 +151,7 @@ export default function Corridor({ job, live, stream, structure, structureError,
                         {record.choices.map(item => <option key={item.key} value={item.key}>帧 #{item.frame} · ID {item.track.track_id}</option>)}
                     </Select></label>}
                     <Button type="button" className="process-button" aria-pressed={state.autoGraph}
-                        onClick={() => actions.setGraphAuto(!state.autoGraph)}>{state.autoGraph ? '暂停自动演示' : '自动演示与切换'}</Button>
+                        onClick={() => actions.setGraphAuto(!state.autoGraph)}>{state.autoGraph ? '暂停自动演示' : state.step === 5 ? '逐项联动演示' : '自动演示与切换'}</Button>
                     <small>{record?.active ? '就近选择有完整 50 次骨架历史的记录；可切换帧回看。使用原权重重算，数值可能有舍入差异。' : state.step === 4 ? '收到新采样值后更新；完成后自动接入逐门重算。' : '自动选择有数据的块；收到新采样值后更新。'}</small>
                 </div>}
                 <StageSelectors state={state} actions={actions} structure={structure} live={live} track={selectedTrack}
@@ -163,25 +162,14 @@ export default function Corridor({ job, live, stream, structure, structureError,
                     <Button type="button" aria-pressed={showModules} onClick={() => { actions.cameraInteract(); setShowModules(true); }}>YOLO 模块结构</Button>
                 </div>}
             </div>
-            <div className={`corridor-stage-wrap ${state.step === 5 && state.operation === 'temporal' ? 'is-temporal' : state.step === 4 ? 'is-memory' : state.step===6 ? 'is-intent' : ''}`}>
+            <div className={`corridor-stage-wrap ${state.step === 5 ? 'is-spacetime' : state.step === 4 ? 'is-memory' : state.step===6 ? 'is-intent' : ''}`}>
                 {(state.step <= 3 && !(state.step === 2 && showModules)) ? <PoseBindingStage key={job?.id || 'empty'}
                     job={job} live={live} tracks={tracks} track={selectedTrack} step={state.step} beat={state.beat}
                     onSelect={onSelectTrack} onInteract={inspect} onFrameReady={replay?.onFrameReady} />
                     : state.step === 4 ? <LSTMComputation key={`${job?.id}-${selectedTrack?.track_id}-${record?.selection?.key || 'live'}`}
                         live={live} record={record} track={selectedTrack} state={state} actions={actions} />
-                    : state.step === 5 && state.operation === 'temporal' ? <TemporalConvolution key={`${state.block}-${state.boundary}-${selectedTrack?.track_id}`}
-                        calculation={calculation} flow={flow} frozen={state.frozen} onSeek={actions.seekTerm} onFreeze={actions.freeze}
-                        auto={state.autoGraph} speed={state.speed} onTick={actions.tickGraph} record={record} job={job} track={selectedTrack}
-                        onInteract={actions.cameraInteract} onNext={() => {
-                            const entries = Object.entries(live?.details?.stgcn || {}).flatMap(([key, rows]) => rows.filter(row =>
-                                row.stage === 'temporal' && String(row.track_id) === String(selectedTrack?.track_id))
-                                .map(row => ({ block: Number(key) + 1, boundary: Boolean(row.metadata?.boundary) })));
-                            const unique = entries.filter((entry, i) => entries.findIndex(other => other.block === entry.block && other.boundary === entry.boundary) === i)
-                                .sort((a, b) => a.block - b.block || Number(a.boundary) - Number(b.boundary));
-                            const index = unique.findIndex(entry => entry.block === state.block && entry.boundary === state.boundary);
-                            const next = unique[(index + 1) % unique.length];
-                            if (next) actions.nextGraph(next.block, next.boundary);
-                        }} />
+                    : state.step === 5 ? <SpatiotemporalComputation job={job} live={live} record={record} track={selectedTrack}
+                        structure={structure} state={state} actions={actions} />
                     : state.step===6 ? <IntentComputation live={live} record={record} track={selectedTrack} state={state} actions={actions} />
                     : <CorridorStage step={state.step} track={selectedTrack} live={live} trackId={selectedTrack?.track_id}
                     structure={structure} onCameraInteract={actions.cameraInteract} onPick={packet => {
@@ -192,15 +180,15 @@ export default function Corridor({ job, live, stream, structure, structureError,
                             actions.selectStep(5); onSeek(0);
                         }
                     }} />}
-                <div className="stage-overlay">
+                {state.step !== 5 && <div className="stage-overlay">
                     <LensPanel open={lensOpen} calculation={calculation} state={flow} terms={terms}
                         waitingLabel={waitingLabel} filter={filter} page={page} onFilter={onFilter} onPage={onPage}
                         onSeek={index => { onSeek(index); actions.seekTerm(index); }} onClose={onCloseLens} />
-                </div>
+                </div>}
             </div>
-            <TransportDeck state={state} actions={actions} currentBeat={state.beat}
-                totalBeats={beats.length} stepTitle={stepTitle} recorded={replay?.active} />
-            {recordOpen ? <RecordLens job={job} structure={structure} frame={replay.frame} module={state.module}
+            {state.step !== 5 && <TransportDeck state={state} actions={actions} currentBeat={state.beat}
+                totalBeats={beats.length} stepTitle={stepTitle} recorded={replay?.active} />}
+            {state.step === 5 ? null : recordOpen ? <RecordLens job={job} structure={structure} frame={replay.frame} module={state.module}
                 onFrame={seekFrame} onModule={actions.selectModule} paused={!replay.playing && replay.status === 'ready'} onClose={() => setRecordOpen(false)} />
                 : <ComputationDesk job={job} live={live} track={selectedTrack} state={state} calculation={calculation}
                     flow={flow} terms={terms} filter={filter} page={page} onFilter={onFilter} onPage={onPage}
